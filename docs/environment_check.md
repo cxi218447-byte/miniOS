@@ -9,13 +9,13 @@
 项目目录：
 
 ```text
-D:\日常教学\2026-2027第一学期\汇编语言\miniOS
+<你的课程工作目录>\miniOS
 ```
 
 环境目录：
 
 ```text
-D:\日常教学\2026-2027第一学期\汇编语言\env
+<你的课程工作目录>\env
 ├── wsl
 ├── downloads
 ├── tools
@@ -71,7 +71,7 @@ docs/manual_wsl_ubuntu_install.md
 优先尝试把 WSL Ubuntu 安装到非 C 盘：
 
 ```powershell
-wsl --install -d Ubuntu --location "D:\日常教学\2026-2027第一学期\汇编语言\env\wsl\Ubuntu"
+wsl --install -d Ubuntu --location "<你的课程工作目录>\env\wsl\Ubuntu"
 ```
 
 当前 Codex 侧曾尝试执行该命令，但 120 秒超时，不能视为安装成功。

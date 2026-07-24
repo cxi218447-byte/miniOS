@@ -69,10 +69,10 @@ sudo apt install -y make qemu-system-misc \
 Windows 如果还没有 WSL Ubuntu，可在管理员 PowerShell 中执行：
 
 ```powershell
-wsl --install -d Ubuntu --location "D:\日常教学\2026-2027第一学期\汇编语言\env\wsl\Ubuntu"
+wsl --install -d Ubuntu --location "<你的课程工作目录>\env\wsl\Ubuntu"
 ```
 
-然后进入 Ubuntu，在仓库目录对应的 `/mnt/d/.../miniOS` 下执行上面的 `apt`
+然后进入 Ubuntu，在仓库目录对应的 `/mnt/<盘符>/<你的课程工作目录>/miniOS` 下执行上面的 `apt`
 安装命令。
 
 手工安装步骤见 [docs/manual_wsl_ubuntu_install.md](docs/manual_wsl_ubuntu_install.md)。

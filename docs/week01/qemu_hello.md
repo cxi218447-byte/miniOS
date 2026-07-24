@@ -65,7 +65,7 @@ cd miniOS
 如果你的仓库在 Windows 磁盘中，WSL 路径通常类似：
 
 ```bash
-cd /mnt/d/日常教学/2026-2027第一学期/汇编语言/miniOS
+cd /mnt/<盘符>/<你的课程工作目录>/miniOS
 ```
 
 ## 4. 工程目录导览

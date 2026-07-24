@@ -32,7 +32,7 @@ sudo apt install -y make qemu-system-misc \
 Windows 安装 WSL Ubuntu：
 
 ```powershell
-wsl --install -d Ubuntu --location "D:\日常教学\2026-2027第一学期\汇编语言\env\wsl\Ubuntu"
+wsl --install -d Ubuntu --location "<你的课程工作目录>\env\wsl\Ubuntu"
 ```
 
 注意：WSL Ubuntu 安装由学生手工执行，安装目录必须位于项目上一级父目录
@@ -204,7 +204,7 @@ week1-week2 check done
 未完成：
 
 - 当前机器缺少 `make`、QEMU 和 LoongArch64 GCC，无法在本机真实编译运行。
-- WSL Ubuntu 需要学生手工安装到 `D:\日常教学\2026-2027第一学期\汇编语言\env\wsl\Ubuntu`。
+- WSL Ubuntu 需要学生手工安装到 `<你的课程工作目录>\env\wsl\Ubuntu`。
 
 下一步：
 

@@ -8,13 +8,13 @@
 项目目录示例：
 
 ```text
-D:\日常教学\2026-2027第一学期\汇编语言\miniOS
+<你的课程工作目录>\miniOS
 ```
 
 环境目录统一放在项目上一级目录：
 
 ```text
-D:\日常教学\2026-2027第一学期\汇编语言\env
+<你的课程工作目录>\env
 ├── wsl
 ├── downloads
 ├── tools
@@ -24,10 +24,10 @@ D:\日常教学\2026-2027第一学期\汇编语言\env
 如果目录不存在，在 PowerShell 中执行：
 
 ```powershell
-mkdir "D:\日常教学\2026-2027第一学期\汇编语言\env\wsl"
-mkdir "D:\日常教学\2026-2027第一学期\汇编语言\env\downloads"
-mkdir "D:\日常教学\2026-2027第一学期\汇编语言\env\tools"
-mkdir "D:\日常教学\2026-2027第一学期\汇编语言\env\cache"
+mkdir "<你的课程工作目录>\env\wsl"
+mkdir "<你的课程工作目录>\env\downloads"
+mkdir "<你的课程工作目录>\env\tools"
+mkdir "<你的课程工作目录>\env\cache"
 ```
 
 ## 2. 检查 WSL
@@ -53,7 +53,7 @@ wsl --install --no-distribution
 优先使用 `--location`：
 
 ```powershell
-wsl --install -d Ubuntu --location "D:\日常教学\2026-2027第一学期\汇编语言\env\wsl\Ubuntu"
+wsl --install -d Ubuntu --location "<你的课程工作目录>\env\wsl\Ubuntu"
 ```
 
 安装完成后，第一次启动 Ubuntu 时按提示创建 Linux 用户名和密码。
@@ -80,15 +80,15 @@ WSL 发行版下载地址。可选处理方式：
 2. 由教师提前下载 Ubuntu rootfs 或 `.appx` 安装包，放到：
 
 ```text
-D:\日常教学\2026-2027第一学期\汇编语言\env\downloads
+<你的课程工作目录>\env\downloads
 ```
 
 3. 使用 `wsl --import` 安装到非 C 盘：
 
 ```powershell
 wsl --import Ubuntu-miniOS `
-  "D:\日常教学\2026-2027第一学期\汇编语言\env\wsl\Ubuntu-miniOS" `
-  "D:\日常教学\2026-2027第一学期\汇编语言\env\downloads\ubuntu-rootfs.tar.gz" `
+  "<你的课程工作目录>\env\wsl\Ubuntu-miniOS" `
+  "<你的课程工作目录>\env\downloads\ubuntu-rootfs.tar.gz" `
   --version 2
 ```
 
@@ -109,7 +109,7 @@ wsl -d Ubuntu-miniOS
 进入后设置环境变量，方便后续缓存放到项目父目录：
 
 ```bash
-export MINIOS_ENV=/mnt/d/日常教学/2026-2027第一学期/汇编语言/env
+export MINIOS_ENV=/mnt/<盘符>/<你的课程工作目录>/env
 export TMPDIR="$MINIOS_ENV/cache"
 ```
 
@@ -117,7 +117,7 @@ export TMPDIR="$MINIOS_ENV/cache"
 
 ```bash
 cat >> ~/.bashrc <<'EOF'
-export MINIOS_ENV=/mnt/d/日常教学/2026-2027第一学期/汇编语言/env
+export MINIOS_ENV=/mnt/<盘符>/<你的课程工作目录>/env
 export TMPDIR="$MINIOS_ENV/cache"
 EOF
 ```
@@ -139,7 +139,7 @@ sudo apt install -y make qemu-system-misc \
 进入项目目录：
 
 ```bash
-cd /mnt/d/日常教学/2026-2027第一学期/汇编语言/miniOS
+cd /mnt/<盘符>/<你的课程工作目录>/miniOS
 ```
 
 执行：
