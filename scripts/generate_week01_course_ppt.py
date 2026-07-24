@@ -218,35 +218,27 @@ def build():
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_background(slide)
     add_text(slide, 0.82, 0.95, 11.8, 0.78, "第 1 周：从 0 启动一个 LoongArch miniOS", size=34, bold=True)
-    add_text(slide, 0.88, 1.88, 11.5, 0.44, "4 节课导入 + QEMU Hello miniOS 实验", size=21, color=COLORS["blue"])
+    add_text(slide, 0.88, 1.88, 11.5, 0.44, "90 分钟单次课：从为什么学汇编到 QEMU Hello miniOS", size=21, color=COLORS["blue"])
     add_text(slide, 0.9, 3.0, 11.5, 0.65, "对象：已系统学习 C 语言的大二计算机类学生", size=24)
     add_text(slide, 0.9, 6.42, 11.6, 0.3, "实验以本仓库 miniOS 代码与 docs/week01_qemu_hello.md 为准。", size=13, color=COLORS["muted"])
 
-    add_bullet_slide(
+    add_table_slide(
         prs,
-        "本周课程结构",
+        "本次课安排（90 分钟）",
+        "四节课内容压缩进一次连堂课，按板块推进。",
+        None,
+        ["板块", "时间", "内容"],
         [
-            "课程知识：为什么学习汇编，为什么选择 LoongArch，为什么先用 QEMU。",
-            "课堂 Demo：编译、反汇编、调试、QEMU 运行、结果分析。",
-            "实验实践：完成最小可验证 Hello miniOS。",
-            "AI 共学：第一周只体验解释和流程图，不直接生成实验代码。",
-            "思考拓展：回答启动入口、栈、printf、QEMU 的核心问题。",
+            ("板块一", "12 分钟", "为什么学习汇编：C 语言经验如何连接到 CPU 执行"),
+            ("板块二", "13 分钟", "LoongArch 最小知识包：寄存器、指令"),
+            ("板块三", "25 分钟", "从 C 到可执行文件：编译链接、Makefile 语法、操作系统做什么、裸机差异"),
+            ("板块四", "30 分钟", "QEMU Hello miniOS 实验：boot.S 详解与实际运行"),
+            ("收尾", "10 分钟", "本周边界、思考题与作业"),
         ],
-        "对应 AGENTS.md 的 Why / How / Do / AI / 思考结构。",
-    )
-    add_bullet_slide(
-        prs,
-        "四节课安排",
-        [
-            "第 1 节：为什么学习汇编，机器语言、汇编语言、C 语言是什么关系。",
-            "第 2 节：LoongArch 最小知识包：寄存器、指令、寻址、分支。",
-            "第 3 节：从 C 到可执行文件：预处理、编译、汇编、链接、ELF。",
-            "第 4 节：读 miniOS 第 1 周代码，在 QEMU 中看到 Hello 输出。",
-        ],
+        [1.6, 1.6, 8.55],
         "第一周不追求掌握全部指令，而是建立正确的底层执行模型。",
     )
 
-    add_section_slide(prs, "第 1 节", "为什么学习汇编", "把学生熟悉的 C 语言，连接到 CPU 真正执行的指令。")
     add_flow_slide(
         prs,
         "从 C 代码到 CPU 执行",
@@ -257,7 +249,7 @@ def build():
             ("硬件行为", "运算\n读写内存\n访问外设", COLORS["teal"]),
         ],
         "汇编课的目标不是背指令，而是看清 C 程序如何落到机器执行。",
-        "第 1 节",
+        "板块一",
     )
     add_bullet_slide(
         prs,
@@ -268,37 +260,14 @@ def build():
             "C 里的函数调用：底层涉及参数寄存器、返回地址和栈。",
             "C 里的指针：底层就是地址，访存指令按地址读写数据。",
         ],
-        lesson="第 1 节",
-    )
-    add_bullet_slide(
-        prs,
-        "第一节课堂活动",
-        [
-            "让学生写一个最简单的 C 函数：int add(int a, int b)。",
-            "提问：CPU 真的认识变量名 a 和 b 吗？",
-            "提问：return a + b 最终需要哪些底层动作？",
-            "结论：汇编帮助我们建立 C 语言和机器执行之间的桥。",
-        ],
-        lesson="第 1 节",
+        lesson="板块一",
     )
 
-    add_section_slide(prs, "第 2 节", "LoongArch 最小知识包", "只讲读懂第 1 周代码需要的寄存器、指令和寻址方式。")
-    add_bullet_slide(
-        prs,
-        "第二节学习目标",
-        [
-            "知道 LoongArch 指令长度固定为 32 位。",
-            "先认识通用寄存器编号 r0~r31，再认识 ABI 别名 zero、ra、sp、a0、t0。",
-            "理解三类基础指令：算术运算、访存、转移。",
-            "能读懂 boot/start.S 中的主路径。",
-        ],
-        lesson="第 2 节",
-    )
     add_table_slide(
         prs,
         "LoongArch 通用寄存器最小表",
         "第一周先认编号和常用 ABI 别名。",
-        "第 2 节",
+        "板块二",
         ["编号", "ABI 别名", "主要用途", "课堂说明"],
         [
             ("r0", "zero", "常量 0", "硬件恒为 0"),
@@ -320,37 +289,10 @@ ld.d    r1, r3, 24        # 恢复 ra
 bne     r12, r0, L        # r12 != 0 时跳转
 bl      func              # 调用函数，返回地址写入 r1/ra
 jirl    r0, r1, 0         # 返回到 ra 指向的位置""",
-        "先用 r 编号讲硬件动作，再映射到 ABI 别名。",
-        "第 2 节",
-    )
-    add_code_slide(
-        prs,
-        "源码写法和教材写法如何对应",
-        """# 教材/反汇编常见写法
-addi.d  r3, r3, -32
-st.d    r1, r3, 24
-jirl    r0, r1, 0
-
-# GNU 汇编器也接受 ABI 别名
-addi.d  $sp, $sp, -32     # $sp 就是 r3
-st.d    $ra, $sp, 24      # $ra 就是 r1
-jirl    $zero, $ra, 0     # $zero 就是 r0""",
-        "避免学生误以为课件、教材和源码是三套体系。",
-        "第 2 节",
-    )
-    add_bullet_slide(
-        prs,
-        "第二节练习",
-        [
-            "先不分类：圈出指令名、寄存器和数字，猜哪一行像改栈、哪一行像跳转。",
-            "把 bne r12, r0, L 解释成 C 语言里的 if 条件跳转。",
-            "解释 bl 为什么会影响 r1/ra。",
-            "解释为什么设置 r3/sp 后才能放心进入 C 函数。",
-        ],
-        lesson="第 2 节",
+        "先用 r 编号讲硬件动作，再映射到 ABI 别名；GNU 汇编器同时接受 $sp/$ra 这类别名，$sp 就是 r3。",
+        "板块二",
     )
 
-    add_section_slide(prs, "第 3 节", "从 C 到可执行文件", "让学生知道 Makefile 背后发生了什么。")
     add_flow_slide(
         prs,
         "编译流程，用到本实验里",
@@ -361,7 +303,28 @@ jirl    $zero, $ra, 0     # $zero 就是 r0""",
             ("QEMU", "加载内核\n开始执行", COLORS["teal"]),
         ],
         "第 1 周只需要说出每一步的作用。",
-        "第 3 节",
+        "板块三",
+    )
+    add_code_slide(
+        prs,
+        "Makefile 语法速览",
+        """# Makefile 最小语法结构（通用示例，不是本项目代码）
+目标: 依赖1 依赖2
+\t命令              # 命令前必须是 Tab，不能是空格
+
+# 例子：把 hello.c 编译成 hello.o
+hello.o: hello.c
+\tgcc -c hello.c -o hello.o
+
+CC := gcc            # := 立即展开赋值
+CFLAGS ?= -Wall       # ?= 只在变量还没被设置时才赋值
+
+.PHONY: clean         # 声明伪目标，clean 不是一个真实文件
+clean:
+\trm -f *.o""",
+        "先认识目标/依赖/命令三段式，再看本项目 Makefile 是怎么用这些语法的。",
+        "板块三",
+        font_size=12,
     )
     add_code_slide(
         prs,
@@ -374,7 +337,7 @@ QEMU    ?= qemu-system-loongarch64
 TARGET  := build/minios.elf
 LDFLAGS := -T kernel/linker.ld -nostdlib -static""",
         "不能用宿主机 x86_64 gcc 冒充 LoongArch 工具链。",
-        "第 3 节",
+        "板块三",
     )
     add_code_slide(
         prs,
@@ -391,7 +354,19 @@ SECTIONS
     .bss : { *(.bss*) *(COMMON) }
 }""",
         "入口是谁、从哪个地址开始、各类内容放在哪里。",
-        "第 3 节",
+        "板块三",
+    )
+    add_bullet_slide(
+        prs,
+        "操作系统平时帮你做了什么",
+        [
+            "帮你把程序加载到内存、分配好栈和堆，你的 C 代码打开就能跑。",
+            "帮你管理多个程序同时运行（进程调度），你不用关心 CPU 什么时候轮到你。",
+            "帮你把 printf、malloc 这些函数背后的系统调用接好，你才能直接调用。",
+            "帮你管理磁盘文件、网络、显示器这些硬件，你只需要调用统一的接口。",
+        ],
+        "普通 C 程序能“写完就跑”，全靠操作系统在背后先把环境搭好。",
+        lesson="板块三",
     )
     add_bullet_slide(
         prs,
@@ -402,10 +377,9 @@ SECTIONS
             "所以我们需要 _start、栈、链接脚本和串口输出。",
             "这正是第 1 周 Hello miniOS 的教学价值。",
         ],
-        lesson="第 3 节",
+        lesson="板块三",
     )
 
-    add_section_slide(prs, "第 4 节", "QEMU Hello miniOS 实验", "把前 3 节概念落到仓库代码和真实运行命令。")
     add_bullet_slide(
         prs,
         "第 1 周核心文件",
@@ -417,22 +391,11 @@ SECTIONS
             "include/printk.h、include/uart.h：函数原型和 UART 地址。",
             "Makefile：编译、运行和清理命令。",
         ],
-        lesson="第 4 节",
+        lesson="板块四",
     )
-    add_bullet_slide(
+    add_code_annotated_slide(
         prs,
-        "当前 master 比第 1 周略多",
-        [
-            "boot/start.S 已包含 clear_bss，这是第 2 周 .bss 的铺垫。",
-            "kernel/main.c 已包含 data/bss/string 检查，第一周只追踪 Hello 链路。",
-            "lib/string.S、kernel/exception.c、kernel/syscall.c 属于后续周次铺垫。",
-            "课堂第 1 周不要展开 .data/.bss、异常和系统调用细节。",
-        ],
-        lesson="第 4 节",
-    )
-    add_code_slide(
-        prs,
-        "boot/start.S 主路径",
+        "boot/start.S 主路径逐行讲解",
         """    .section .text.boot, "ax"
     .globl _start
 
@@ -446,8 +409,15 @@ _start:
 halt:
     idle        0
     b           halt""",
-        "第一周关注：_start、设置 sp、调用 kernel_main、halt 循环。",
-        "第 4 节",
+        [
+            "① .section .text.boot 把这段代码放到链接脚本指定的启动区域，保证它在最前面。",
+            "② .globl _start 让链接器能找到这个入口符号，对应链接脚本里的 ENTRY(_start)。",
+            "③ la.global $sp, boot_stack_top：CPU 上电后 $sp 是垃圾值，必须先指向预留的栈顶。",
+            "④ bl kernel_main：调用 C 函数，同时把返回地址写入 $ra——但 kernel_main 不会返回。",
+            "⑤ halt 循环：防止 kernel_main 意外返回后，CPU 从未知内存继续取指执行。",
+        ],
+        "这是 miniOS 里真实的 boot/start.S 主路径，不是教学示意代码。",
+        "板块四",
     )
     add_code_slide(
         prs,
@@ -463,7 +433,7 @@ void kernel_main(void)
     }
 }""",
         "当前 master 有第 2 周检查代码；课堂先抽出这条最小路径。",
-        "第 4 节",
+        "板块四",
     )
     add_code_slide(
         prs,
@@ -483,7 +453,7 @@ void printk(const char *s)
     }
 }""",
         "UART0_BASE 是 QEMU virt 平台地址，不代表 2K0300 开发板地址。",
-        "第 4 节",
+        "板块四",
     )
     add_flow_slide(
         prs,
@@ -496,7 +466,23 @@ void printk(const char *s)
             ("UART", "终端显示\nHello", COLORS["red"]),
         ],
         "这条链路跑通，才进入第 2 周。",
-        "第 4 节",
+        "板块四",
+    )
+    add_bullet_slide(
+        prs,
+        "裸机启动逐步说明",
+        [
+            "① QEMU 把 build/minios.elf 加载进虚拟内存，按 ELF 头找到入口地址。",
+            "② CPU 从入口地址（_start）取出第一条指令开始执行，此时还没有任何 C 环境。",
+            "③ _start 把 $sp 指向预留的栈空间——没有这一步，C 函数完全不能用。",
+            "④ bl kernel_main 跳转进 C 代码，从这里开始才是我们熟悉的 C 语言世界。",
+            "⑤ kernel_main 调用 printk，printk 逐字符调用 uart_putc。",
+            "⑥ uart_putc 直接向 UART0_BASE 这个内存地址写字节——这不是普通内存，是外设寄存器。",
+            "⑦ QEMU 把这次写操作翻译成终端输出，我们才看到 Hello miniOS。",
+            "⑧ kernel_main 结束后代码进入 halt 死循环，因为裸机没有“返回到操作系统”这回事。",
+        ],
+        "对照上一页的流程图，这里是文字版逐步说明。",
+        lesson="板块四",
     )
     add_code_slide(
         prs,
@@ -510,65 +496,34 @@ make
 
 # 运行
 make run""",
-        "实际测试结果必须来自学生机器真实命令输出。",
-        "第 4 节",
+        "预期串口输出：Hello miniOS on LoongArch64。未执行过 make run 就不能写“已通过”，工具链缺失要记录“未执行”和失败原因。",
+        "板块四",
     )
-    add_bullet_slide(
-        prs,
-        "预期输出与测试记录",
-        [
-            "预期串口输出：Hello miniOS on LoongArch64。",
-            "未执行过 make run，就不能写“已通过”。",
-            "工具链缺失时，记录为“未执行”，并写明失败原因。",
-            "测试报告必须包含：已执行、未执行、失败原因、下一步命令。",
-        ],
-        lesson="第 4 节",
-    )
-    add_bullet_slide(
-        prs,
-        "AI 共学边界",
-        [
-            "可以让 AI 解释 boot/start.S 的作用。",
-            "可以让 AI 绘制 miniOS 启动流程图。",
-            "可以让 AI 解释 QEMU 的作用。",
-            "不允许让 AI 直接生成实验代码。",
-        ],
-        "第一周仅体验 AI 辅助理解，不能替代学生读代码和做实验。",
-        "第 4 节",
-    )
-    add_bullet_slide(
-        prs,
-        "第一周学生作业",
-        [
-            "画出 miniOS 第 1 周执行路径图。",
-            "把 Hello 字符串改成自己的姓名和学号，重新编译运行。",
-            "解释 boot/start.S 中 sp、bl、b、idle 的作用。",
-            "提交环境检查结果和真实运行截图或日志。",
-        ],
-        lesson="第 4 节",
-    )
+
     add_bullet_slide(
         prs,
         "本周边界",
         [
-            "不讲完整操作系统。",
-            "不讲进程、文件系统、虚拟内存。",
+            "不讲完整操作系统，不讲进程、文件系统、虚拟内存。",
             "不直接适配 2K0300 开发板。",
-            "不把未实测结果写成已通过。",
-            "下一周再展开 .data、.bss 和内存初始化。",
+            "不把未实测结果写成已通过——工具链缺失就记录“未执行”。",
+            "当前 master 已包含第 2 周 .data/.bss 检查代码和 clear_bss，第 1 周课堂只讲 Hello 链路，这部分下周展开。",
+            "lib/string.S、kernel/exception.c、kernel/syscall.c 属于后续周次铺垫，本周不展开。",
+            "AI 共学：可以让 AI 解释代码、画流程图，不允许让 AI 直接生成实验代码或代替写实验报告。",
         ],
-        lesson="第 4 节",
+        lesson="收尾",
     )
     add_bullet_slide(
         prs,
-        "思考题",
+        "思考题与作业",
         [
-            "CPU 第一条指令在哪里？",
-            "为什么裸机程序不是从 main() 开始？",
-            "为什么进入 C 函数前要设置 sp？",
-            "为什么 miniOS 不能直接使用 printf？",
-            "为什么先 QEMU 再开发板？",
+            "思考：CPU 第一条指令在哪里？为什么裸机程序不是从 main() 开始？",
+            "思考：为什么进入 C 函数前要设置 sp？为什么 miniOS 不能直接使用 printf？",
+            "思考：为什么先 QEMU 再开发板？",
+            "作业：画出 miniOS 第 1 周执行路径图，把 Hello 字符串改成自己的姓名和学号重新编译运行。",
+            "作业：解释 boot/start.S 中 sp、bl、b、idle 的作用，提交环境检查结果和真实运行截图或日志。",
         ],
+        lesson="收尾",
     )
 
     prs.save(OUT)
