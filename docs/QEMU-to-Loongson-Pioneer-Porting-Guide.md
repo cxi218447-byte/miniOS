@@ -36,8 +36,7 @@ QEMU 版本：
 - 预期输出：
 
 ```text
-miniOS booting...
-Hello, LoongArch miniOS!
+Hello miniOS on LoongArch64
 ```
 
 龙芯先锋板版本：

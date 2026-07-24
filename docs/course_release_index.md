@@ -12,16 +12,16 @@
 
 ## 1. 每周发布索引
 
-| 周次 | 实验主题 | Git tag | 源码下载链接 | 发布状态 | 测试状态 |
-|---|---|---|---|---|---|
-| 第 1 周 | QEMU Hello miniOS | `week01-qemu-hello` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week01-qemu-hello.zip> | 待发布 | 待确认 |
-| 第 2 周 | `.data/.bss` 与内存初始化 | `week02-data-bss` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week02-data-bss.zip> | 未开始 | 未执行 |
-| 第 3 周 | 分支、循环与字符串输出 | `week03-branch-loop` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week03-branch-loop.zip> | 未开始 | 未执行 |
-| 第 4 周 | 函数调用约定与栈帧 | `week04-stack-abi` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week04-stack-abi.zip> | 未开始 | 未执行 |
-| 第 5 周 | 系统调用 `sys_write` | `week05-syscall` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week05-syscall.zip> | 未开始 | 未执行 |
-| 第 6 周 | 异常与中断基础 | `week06-exception` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week06-exception.zip> | 未开始 | 未执行 |
-| 第 7 周 | `memset/memcpy` 优化 | `week07-mem-opt` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week07-mem-opt.zip> | 未开始 | 未执行 |
-| 第 8 周 | miniOS 综合实验与移植准备 | `week08-minios-demo` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week08-minios-demo.zip> | 未开始 | 未执行 |
+| 周次 | 实验主题 | 实验文档 | Git tag | 源码下载链接 | 发布状态 | 测试状态 |
+|---|---|---|---|---|---|---|
+| 第 1 周 | QEMU Hello miniOS | [docs/week01/README.md](week01/README.md) | `week01-qemu-hello` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week01-qemu-hello.zip> | 待发布 | 待确认 |
+| 第 2 周 | `.data/.bss` 与内存初始化 | [docs/week02/data_bss.md](week02/data_bss.md) | `week02-data-bss` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week02-data-bss.zip> | 待测试 | 未执行 |
+| 第 3 周 | 分支、循环与字符串输出 | 待补充 | `week03-branch-loop` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week03-branch-loop.zip> | 未开始 | 未执行 |
+| 第 4 周 | 函数调用约定与栈帧 | 待补充 | `week04-stack-abi` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week04-stack-abi.zip> | 未开始 | 未执行 |
+| 第 5 周 | 系统调用 `sys_write` | 待补充 | `week05-syscall` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week05-syscall.zip> | 未开始 | 未执行 |
+| 第 6 周 | 异常与中断基础 | 待补充 | `week06-exception` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week06-exception.zip> | 未开始 | 未执行 |
+| 第 7 周 | `memset/memcpy` 优化 | 待补充 | `week07-mem-opt` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week07-mem-opt.zip> | 未开始 | 未执行 |
+| 第 8 周 | miniOS 综合实验与移植准备 | 待补充 | `week08-minios-demo` | <https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week08-minios-demo.zip> | 未开始 | 未执行 |
 
 ## 2. 发布状态含义
 
@@ -59,7 +59,7 @@ make
 make run
 
 # 4. 更新文档
-# - docs/weekXX_*.md
+# - docs/weekXX/*.md
 # - docs/environment_check.md
 # - docs/LoongArch_miniOS_实验测试报告.md
 # - docs/course_release_index.md
@@ -109,4 +109,3 @@ https://github.com/cxi218447-byte/miniOS/archive/refs/tags/week01-qemu-hello.zip
 - 不使用最终版工程回讲前几周实验。
 - 如果需要展示后续功能，必须明确说明“这是后续周次内容，不属于本周验收范围”。
 - 每周 PPT、实验文档、测试报告和代码 tag 必须互相对应。
-

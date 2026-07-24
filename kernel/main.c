@@ -7,9 +7,8 @@ static char data_message[] = "data section ok";
 void kernel_main(void)
 {
     char buf[32];
-    const char *msg = "Hello, LoongArch miniOS!\n";
+    const char *msg = "Hello miniOS on LoongArch64\n";
 
-    printk("miniOS booting...\n");
     printk(msg);
 
     memset(buf, 0, sizeof(buf));

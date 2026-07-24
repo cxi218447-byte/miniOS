@@ -5,6 +5,11 @@
 - 第 1 周：启动代码、仓库初始化、串口 Hello World。
 - 第 2 周：`.data/.bss` 初始化、内存寻址、C 与汇编混合编译。
 
+实验文档：
+
+- 第 1 周课程资料：[docs/week01/README.md](docs/week01/README.md)
+- 第 2 周实验文档：[docs/week02/data_bss.md](docs/week02/data_bss.md)
+
 后续异常、系统调用和中断实验保留源码框架，但默认启动路径暂不进入，避免影响
 第 1-2 周跑通。
 
@@ -97,8 +102,7 @@ gdb-multiarch build/minios.elf
 ## 第 1-2 周预期输出
 
 ```text
-miniOS booting...
-Hello, LoongArch miniOS!
+Hello miniOS on LoongArch64
 data section ok
 bss section cleared
 week1-week2 check done
@@ -113,7 +117,7 @@ miniOS/
 ├── lib/        # 汇编库函数
 ├── include/    # 头文件
 ├── scripts/    # 环境检查脚本
-├── docs/       # 移植说明
+├── docs/       # 课程资料、环境说明和移植说明
 ├── user/       # 后续用户态实验预留目录
 ├── tests/      # 测试说明
 ├── Makefile
