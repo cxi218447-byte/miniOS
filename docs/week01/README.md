@@ -10,6 +10,7 @@
 
 - [课堂讲义](week01_qemu_hello_lecture_notes.md)
 - [课程 PPT](week01_qemu_hello_course.pptx)
+- [课堂进度检查点分支说明](branch_checkpoints.md)
 
 ## 课堂动画
 
