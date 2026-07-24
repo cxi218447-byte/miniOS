@@ -1,0 +1,134 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f8fb;
+  --ink: #1b2533;
+  --muted: #5b6675;
+  --line: #d9dee8;
+  --panel: #ffffff;
+  --accent: #0b7285;
+  --accent-dark: #075866;
+  --warm: #b7791f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+.site-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 20px 64px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent-dark);
+}
+
+.home-link {
+  text-decoration: none;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.hero {
+  padding: 40px 0 28px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-weight: 800;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(32px, 5vw, 56px);
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.lead {
+  max-width: 760px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1.7;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.card {
+  display: block;
+  min-height: 168px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  text-decoration: none;
+  box-shadow: 0 8px 22px rgba(27, 37, 51, 0.07);
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 10px 26px rgba(11, 114, 133, 0.16);
+}
+
+.card small {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--warm);
+  font-weight: 800;
+}
+
+.card strong {
+  display: block;
+  font-size: 24px;
+  line-height: 1.3;
+}
+
+.card span {
+  display: block;
+  margin-top: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.note {
+  margin-top: 32px;
+  padding: 16px 18px;
+  border-left: 4px solid var(--accent);
+  background: #e7f5f8;
+  color: #12343b;
+  line-height: 1.7;
+}

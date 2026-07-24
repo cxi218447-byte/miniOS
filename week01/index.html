@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 1 周动画 - LoongArch miniOS</title>
+  <link rel="stylesheet" href="../assets/shared.css">
+</head>
+<body>
+  <main class="site-shell">
+    <nav class="topbar" aria-label="站点导航">
+      <p class="brand">第 1 周：从 0 启动一个 LoongArch miniOS</p>
+      <a class="home-link" href="../">返回首页</a>
+    </nav>
+
+    <section class="hero">
+      <p class="eyebrow">Week 01</p>
+      <h1>课堂演示动画</h1>
+      <p class="lead">这些动画用于配合第一周课堂讲解，帮助理解 C 代码、汇编、编译产物、启动流程和 CPU 执行之间的关系。</p>
+    </section>
+
+    <section class="grid" aria-label="第 1 周动画列表">
+      <a class="card" href="slide8-c-to-cpu/">
+        <small>Slide 8</small>
+        <strong>从 C 代码到 CPU 执行</strong>
+        <span>观察变量名、参数位置、寄存器和指令之间的转换关系。</span>
+      </a>
+
+      <a class="card" href="relay-race-boot/">
+        <small>Boot Flow</small>
+        <strong>miniOS 启动接力赛</strong>
+        <span>从 CPU 第一条指令到 kernel_main，再到 printk 和 UART 输出。</span>
+      </a>
+
+      <a class="card" href="build-pipeline/">
+        <small>Build Pipeline</small>
+        <strong>编译到运行流水线</strong>
+        <span>串联 make、gcc、ld、objdump、QEMU 的课堂演示流程。</span>
+      </a>
+    </section>
+
+    <p class="note">建议课堂投屏使用桌面浏览器打开；学生课后可直接用手机或电脑浏览器访问。</p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,7 @@
+build/
+docs/
+.claude/
+.worktrees/
+temp-gh-pages-source/
+AGENTS_old.md
+~$*

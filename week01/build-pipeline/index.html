@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 1 周第 15 页：编译流程解答</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app" class="lesson-shell" data-step="0">
+    <header class="lesson-header">
+      <p class="eyebrow">第 3 节 · 第 15 页解答动画</p>
+      <h1>看具体代码：make 到底做了什么？</h1>
+      <p id="questionText" class="question">从 `kernel/main.c` 的 Hello 字符串开始，追到 QEMU 最后加载的 ELF。</p>
+    </header>
+
+    <section class="code-workbench" aria-label="miniOS 编译流程代码解答">
+      <article class="code-lens" aria-label="当前源码片段">
+        <div class="window-bar">
+          <span id="sourcePath">kernel/main.c</span>
+          <strong id="sourceRole">C 源码</strong>
+        </div>
+        <pre class="code-box"><code id="codeText">const char *msg = "Hello miniOS on LoongArch64\n";
+printk(msg);</code></pre>
+      </article>
+
+      <article class="transform-panel" aria-label="当前生成路径">
+        <h2>这一步生成什么？</h2>
+        <div class="path-flow">
+          <div class="artifact input-artifact" id="inputArtifact">kernel/main.c</div>
+          <div class="flow-arrow">→</div>
+          <div class="artifact output-artifact" id="outputArtifact">build/kernel/main.o</div>
+        </div>
+        <pre id="commandText" class="command-box">$(BUILD_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) -Iinclude -c $&lt; -o $@</pre>
+      </article>
+
+      <article class="answer-panel" aria-label="课堂答案">
+        <h2>课堂答案</h2>
+        <p id="answerText">C 文件里有学生能看懂的 `printk(msg)`，但 CPU 不直接执行 C 文本；它要先变成 LoongArch 机器指令片段。</p>
+        <h3>逐行解释</h3>
+        <pre id="lineExplainText" class="line-explain">const char *msg：准备要输出的字符串。
+printk(msg)：把字符串交给 miniOS 的串口输出函数。</pre>
+        <h3>承上启下</h3>
+        <p id="transitionText" class="transition-text">下一步要看：这些 C 文本怎样被交叉编译器变成目标文件。</p>
+        <div class="terminal">
+          <div class="terminal-bar">QEMU 终端</div>
+          <pre id="terminalOutput">等待 build/minios.elf</pre>
+        </div>
+      </article>
+    </section>
+
+    <section class="mini-pipeline" aria-label="整体流程">
+      <span data-node="c">main.c</span>
+      <span data-node="s">start.S</span>
+      <span data-node="o">.o</span>
+      <span data-node="ld">linker.ld</span>
+      <span data-node="elf">minios.elf</span>
+      <span data-node="qemu">QEMU</span>
+      <span data-node="hello">Hello</span>
+    </section>
+
+    <footer class="controls" aria-label="动画控制">
+      <button id="prevStep" type="button" aria-label="上一步">◀</button>
+      <button id="playPause" type="button" aria-label="播放">播放</button>
+      <button id="nextStep" type="button" aria-label="下一步">▶</button>
+      <div id="stepMarkers" class="step-markers" aria-label="步骤导航"></div>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
