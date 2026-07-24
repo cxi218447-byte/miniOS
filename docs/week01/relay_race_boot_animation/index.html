@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 1 周：一场接力赛 —— 裸机启动动画</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app" class="relay-shell" data-step="0">
+    <header class="relay-header">
+      <p class="eyebrow">板块四 · 打个比方：一场接力赛</p>
+      <h1 id="headline">QEMU 裁判员鸣枪，比赛开始</h1>
+      <p id="subline" class="subline">CPU -&gt; boot/start.S -&gt; kernel_main() -&gt; printk() -&gt; UART -&gt; Hello miniOS</p>
+    </header>
+
+    <section class="track-wrap" aria-label="接力赛跑道">
+      <div class="track-line"></div>
+      <div class="track-pulse" id="trackPulse"></div>
+      <div class="track-nodes" id="trackNodes">
+        <div class="node" data-node="judge">
+          <span class="node-icon">🏁</span>
+          <span class="node-label">QEMU<br>裁判员</span>
+        </div>
+        <div class="node" data-node="start">
+          <span class="node-icon">🎽</span>
+          <span class="node-label">_start<br>第一棒</span>
+        </div>
+        <div class="node" data-node="kernelmain">
+          <span class="node-icon">🏃</span>
+          <span class="node-label">kernel_main<br>主力选手</span>
+        </div>
+        <div class="node" data-node="uart">
+          <span class="node-icon">📢</span>
+          <span class="node-label">printk<br>喊成绩</span>
+        </div>
+        <div class="node" data-node="terminal">
+          <span class="node-icon">📺</span>
+          <span class="node-label">QEMU 终端<br>记分牌</span>
+        </div>
+        <div class="node" data-node="halt">
+          <span class="node-icon">⏸</span>
+          <span class="node-label">halt<br>原地休息</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="detail-grid" aria-label="当前步骤详情">
+      <article class="detail-panel">
+        <h2>发生了什么</h2>
+        <p id="detailText">裁判员把 <code>build/minios.elf</code> 放上起跑线——加载进虚拟内存，按 ELF 头找到入口地址，然后鸣枪：CPU 从入口地址取出第一条指令。</p>
+        <h3>对应真实代码/命令</h3>
+        <pre id="codeText" class="code-box">qemu-system-loongarch64 -M virt -nographic -kernel build/minios.elf</pre>
+      </article>
+
+      <article class="terminal-panel" aria-label="QEMU 终端">
+        <div class="terminal-bar">
+          <span class="dot red"></span><span class="dot amber"></span><span class="dot green"></span>
+          <span class="terminal-title">qemu-system-loongarch64</span>
+        </div>
+        <pre id="terminalOutput" class="terminal-body">等待比赛开始...<span class="cursor">▌</span></pre>
+      </article>
+    </section>
+
+    <footer class="controls" aria-label="动画控制">
+      <button id="prevStep" type="button" aria-label="上一步">◀ 上一步</button>
+      <button id="playPause" type="button" aria-label="播放">▶ 播放</button>
+      <button id="nextStep" type="button" aria-label="下一步">下一步 ▶</button>
+      <div id="stepMarkers" class="step-markers" aria-label="步骤导航"></div>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
