@@ -53,8 +53,8 @@ Hello miniOS
 
 如果工具尚未安装，先阅读：
 
-- `docs/manual_wsl_ubuntu_install.md`
-- `docs/environment_check.md`
+- `../manual_wsl_ubuntu_install.md`
+- `../environment_check.md`
 
 进入仓库目录后再开始实验。示例：
 
@@ -534,8 +534,8 @@ Hello miniOS on LoongArch64
 完成本周必做内容后，可以继续阅读：
 
 - `README.md`：了解仓库总体说明。
-- `docs/course_release_index.md`：了解每周实验和 tag 发布方式。
-- `docs/manual_wsl_ubuntu_install.md`：补齐 WSL Ubuntu 环境安装。
-- `docs/QEMU-to-Loongson-Pioneer-Porting-Guide.md`：了解为什么所有实验先在 QEMU 跑通，再考虑迁移。
+- `../course_release_index.md`：了解每周实验和 tag 发布方式。
+- `../manual_wsl_ubuntu_install.md`：补齐 WSL Ubuntu 环境安装。
+- `../QEMU-to-Loongson-Pioneer-Porting-Guide.md`：了解为什么所有实验先在 QEMU 跑通，再考虑迁移。
 
 拓展阅读不属于第 1 周验收重点。第 1 周最重要的是把 Hello 链路真实跑通，并能沿着源码解释它。
