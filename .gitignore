@@ -7,3 +7,5 @@ build/
 .worktrees/
 docs/
 scripts/
+.agents/
+.claude/
