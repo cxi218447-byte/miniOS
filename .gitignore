@@ -5,8 +5,3 @@ build/
 *.log
 ~$*
 .worktrees/
-docs/
-scripts/
-.agents/
-.claude/
-AGENTS.md
