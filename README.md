@@ -22,9 +22,16 @@
 
 ```bash
 git fetch --tags
-git switch -c my-week01-lab week01-qemu-hello
-git switch -c my-week02-lab week02-data-bss
+git switch -c my-week01-lab week01-qemu-hello   # 第 1 次课：本地实验分支
+git switch -c my-week02-lab week02-data-bss     # 第 2 次课：另建本地分支
 ```
+
+**说明（重要）：**
+
+- `week01-qemu-hello` / `week02-data-bss` 是**远程已发布的课程 tag**（全班统一起点）。  
+- `my-week01-lab` / `my-week02-lab` 是**你在本机新建的个人实验分支**，**默认不会、也不需要**出现在 GitHub 上。  
+- 命令含义是「从 tag 复制一份到本地再改」，不是「去远程领取一个叫 my-weekXX-lab 的分支」。  
+- 课程远程只维护 `master` + 各课次 tag；个人分支请留在本地（详见实验指导书与 `docs/week01/student_git_tag_guide.md`）。
 
 ### 已发布 tag 与源码范围
 
