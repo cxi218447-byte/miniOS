@@ -1,5 +1,5 @@
 /*
- * week01-02-kernel-main-empty：_start 已调用这里，但还没有输出。
+ * week01-01：_start 尚未调用本函数，先保留空壳便于后续检查点衔接。
  */
 
 #include "printk.h"
