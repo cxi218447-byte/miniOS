@@ -1,12 +1,15 @@
 # LoongArch 汇编 miniOS 实验
 
-本仓库用于 LoongArch 汇编课程实验。当前阶段只做第 1-2 周验证：
+本仓库用于 LoongArch 汇编课程实验。课程资料按“2 节课 = 1 个课程周次”组织，共 16 个课程周次。若实际排课为一周 4 节课，则一个行政教学周通常连续完成两个课程周次。
 
-- 第 1 周：启动代码、仓库初始化、串口 Hello World。
-- 第 2 周：`.data/.bss` 初始化、内存寻址、C 与汇编混合编译。
+当前阶段已整理第 1-2 周验证：
+
+- 第 1 周：从 0 启动 LoongArch miniOS，跑通 QEMU Hello miniOS。
+- 第 2 周：`.data/.bss` 初始化、内存寻址、C 与汇编混合启动。
 
 实验文档：
 
+- 课程组织规则：[docs/course_structure.md](docs/course_structure.md)
 - 第 1 周课程资料：[docs/week01/README.md](docs/week01/README.md)
 - 第 2 周实验文档：[docs/week02/data_bss.md](docs/week02/data_bss.md)
 
@@ -99,7 +102,7 @@ gdb-multiarch build/minios.elf
 (gdb) target remote :1234
 ```
 
-## 第 1-2 周预期输出
+## 第 1-2 周阶段预期输出
 
 ```text
 Hello miniOS on LoongArch64
@@ -107,6 +110,8 @@ data section ok
 bss section cleared
 week1-week2 check done
 ```
+
+其中第 1 周只验收 `Hello miniOS on LoongArch64`；第 2 周在此基础上验收 `.data/.bss` 相关三行输出。
 
 ## 目录结构
 

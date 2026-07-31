@@ -2,6 +2,8 @@
 
 主题：QEMU Hello miniOS
 
+课程周次说明：本课程按“2 节课 = 1 个课程周次”组织。第 1 周对应课程第 1-2 节；如果实际排课一周 4 节课，则同一行政周的第 3-4 节通常进入课程第 2 周。
+
 ## 学生实验
 
 - [实验指导手册](qemu_hello.md)
@@ -23,3 +25,5 @@
 ```text
 Hello miniOS on LoongArch64
 ```
+
+第 1 周只验收 Hello 输出链路。当前 `master` 可能已经包含第 2 周 `.data/.bss` 检查输出，学生应按本周 tag `week01-qemu-hello` 获取第 1 周最终版本。

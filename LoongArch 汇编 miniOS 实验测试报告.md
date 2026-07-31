@@ -45,7 +45,9 @@ wsl --install -d Ubuntu --location "<你的课程工作目录>\env\wsl\Ubuntu"
 sh scripts/check-env.sh
 ```
 
-## 1. 第 1 周：Hello World 输出、启动代码、仓库初始化
+## 1. 第 1 周：从 0 启动 LoongArch miniOS
+
+课程周次说明：第 1 周对应课程第 1-2 节。若实际排课一周 4 节课，则行政第 1 周的第 1-2 节讲授本周内容。
 
 实验目标：
 
@@ -66,8 +68,7 @@ _start:
 ```c
 void kernel_main(void)
 {
-    printk("miniOS booting...\n");
-    printk("Hello, LoongArch miniOS!\n");
+    printk("Hello miniOS on LoongArch64\n");
 }
 ```
 
@@ -88,8 +89,7 @@ qemu-system-loongarch64 -M virt -m 512M -nographic -kernel build/minios.elf
 QEMU 预期输出：
 
 ```text
-miniOS booting...
-Hello, LoongArch miniOS!
+Hello miniOS on LoongArch64
 ```
 
 龙芯先锋板版本：
@@ -118,6 +118,8 @@ Hello, LoongArch miniOS!
 - 链接失败：检查 `kernel/linker.ld` 是否包含 `ENTRY(_start)`。
 
 ## 2. 第 2 周：.data/.bss 初始化、内存寻址、C 与汇编混合编译
+
+课程周次说明：第 2 周对应课程第 3-4 节。若实际排课一周 4 节课，则行政第 1 周的第 3-4 节可以讲授本周内容。
 
 实验目标：
 
@@ -159,8 +161,7 @@ make run
 QEMU 预期输出：
 
 ```text
-miniOS booting...
-Hello, LoongArch miniOS!
+Hello miniOS on LoongArch64
 data section ok
 bss section cleared
 week1-week2 check done
@@ -196,7 +197,7 @@ week1-week2 check done
 已完成：
 
 - Git 仓库初始化。
-- 第 1-2 周代码路径收敛。
+- 第 1-2 个课程周次代码路径收敛。
 - QEMU 优先的 Makefile。
 - 环境检查脚本。
 - 《QEMU→龙芯先锋板移植指南》初版。
@@ -212,4 +213,4 @@ week1-week2 check done
 2. 安装 LoongArch64 GCC、QEMU、Make、GDB。
 3. 执行 `sh scripts/check-env.sh`。
 4. 执行 `make clean && make && make run`。
-5. 串口输出与第 2 周预期一致后，再继续第 3 周。
+5. 串口输出与第 2 周预期一致后，再继续第 3 个课程周次。

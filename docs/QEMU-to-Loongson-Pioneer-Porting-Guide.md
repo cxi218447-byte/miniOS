@@ -23,7 +23,7 @@
 | 启动方式 | `qemu-system-loongarch64 -M virt -kernel build/minios.elf` | 通常由 PMON/U-Boot/固件加载 | 明确固件加载地址、入口地址、镜像格式 |
 | 串口 | 本实验使用 `UART0_BASE` 作为 QEMU 串口 MMIO 基址 | 以板卡原理图/设备树为准 | 修改 `include/uart.h`，必要时增加 UART 初始化 |
 | 内存布局 | 链接脚本固定内核入口 | 取决于板载内存和固件保留区 | 修改 `kernel/linker.ld` |
-| 中断控制器 | QEMU 虚拟控制器 | 板载中断控制器 | 第 5 周以后单独抽象 irqchip |
+| 中断控制器 | QEMU 虚拟控制器 | 板载中断控制器 | 第 9 周以后单独抽象 irqchip |
 | 调试 | QEMU `-S -s` + GDB | JTAG、串口日志或板载 GDB server | 保留串口日志，增加硬件调试说明 |
 
 ## 第 1 周：Hello World 输出
@@ -91,7 +91,7 @@ week1-week2 check done
 
 ## 迁移原则
 
-1. 每周实验先在 QEMU 通过，再创建对应的先锋板分支或配置。
+1. 每个课程周次实验先在 QEMU 通过，再创建对应的先锋板分支或配置。
 2. 不把板级地址散落在 C 文件中，统一放到 `include/` 或后续 `platform/` 目录。
 3. 每次迁移只改一个平台差异点：入口地址、UART、中断控制器、计时器分开验证。
 4. QEMU 输出作为回归标准，开发板输出必须先做到同样的最小文本。
