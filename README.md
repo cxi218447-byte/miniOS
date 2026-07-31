@@ -111,21 +111,37 @@ wsl --install -d Ubuntu --location "<你的课程工作目录>\env\wsl\Ubuntu"
 
 手工安装步骤见 [docs/manual_wsl_ubuntu_install.md](docs/manual_wsl_ubuntu_install.md)。
 
-## 编译和运行
+## 编译和运行（务必在 Linux / WSL 中执行）
+
+> **禁止在 Windows PowerShell 里直接敲 `make`。**  
+> 若出现 `无法将“make”项识别为 cmdlet` / `ObjectNotFound: make`，说明还在 Windows。  
+> 完整逐步说明：本地 `docs/student_env_runbook.md`（及各次课实验指导书 §2）。
+
+### 标准做法（推荐）
+
+```powershell
+wsl -d Ubuntu
+```
+
+进入 Ubuntu 后：
 
 ```sh
+cd "/mnt/<盘符>/<你的路径>/miniOS"   # 例：D:\foo\miniOS → /mnt/d/foo/miniOS
+ls Makefile
 make clean
 make
 make run
 ```
 
-等价 QEMU 命令：
+退出 QEMU：先 **Ctrl+a**，再按 **x**。
+
+### 等价 QEMU 命令
 
 ```sh
 qemu-system-loongarch64 -M virt -m 512M -nographic -kernel build/minios.elf
 ```
 
-调试：
+### 调试
 
 ```sh
 make debug
