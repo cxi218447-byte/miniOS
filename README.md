@@ -111,19 +111,27 @@ wsl --install -d Ubuntu --location "<你的课程工作目录>\env\wsl\Ubuntu"
 
 手工安装步骤见 [docs/manual_wsl_ubuntu_install.md](docs/manual_wsl_ubuntu_install.md)。
 
-## 编译和运行（务必在 Linux / WSL 中执行）
+## 编译和运行（先进入 Ubuntu，再 make）
 
-> **禁止在 Windows PowerShell 里直接敲 `make`。**  
-> 若出现 `无法将“make”项识别为 cmdlet` / `ObjectNotFound: make`，说明还在 Windows。  
-> 完整逐步说明：本地 `docs/student_env_runbook.md`（及各次课实验指导书 §2）。
+> **课程默认：第 1 周已装好 WSL + Ubuntu。**  
+> 做实验时：**先进入 Ubuntu，再 `cd` 仓库，最后才 `make`。**  
+> **禁止**在 Windows PowerShell（提示符 `PS ...>`）里直接敲 `make`。  
+> 完整说明：本地 `docs/student_env_runbook.md`、各次课实验指导书 §2。
 
-### 标准做法（推荐）
+### 标准做法（每次实验都按这个顺序）
+
+**① 在 PowerShell 中进入 Ubuntu（还不能 make）：**
 
 ```powershell
 wsl -d Ubuntu
 ```
 
-进入 Ubuntu 后：
+成功后提示符从 `PS D:\...>` 变成 `用户名@主机名:~$`。  
+（也可从开始菜单打开 **Ubuntu**。）
+
+若报错找不到发行版，先执行 `wsl -l -v` 查看名称，再 `wsl -d <NAME>`。
+
+**② 已进入 Ubuntu 之后，再编译运行：**
 
 ```sh
 cd "/mnt/<盘符>/<你的路径>/miniOS"   # 例：D:\foo\miniOS → /mnt/d/foo/miniOS
