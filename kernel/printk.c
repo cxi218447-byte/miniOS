@@ -23,13 +23,3 @@ void printk(const char *s)
 {
     uart_puts(s);
 }
-
-void printk_hex(unsigned long value)
-{
-    static const char digits[] = "0123456789abcdef";
-
-    printk("0x");
-    for (int i = 60; i >= 0; i -= 4) {
-        uart_putc(digits[(value >> i) & 0xf]);
-    }
-}

@@ -1,6 +1,7 @@
 /*
  * miniOS 启动入口。
- * 目标：让学生看到 CPU 进入内核后最先执行的汇编代码。
+ * 第 1 次课：设栈 → 进入 kernel_main → halt。
+ * 第 2 次课：在进入 C 前增加 clear_bss。
  */
 
     .section .text.boot, "ax"
@@ -32,26 +33,6 @@ clear_bss:
 
 2:
     jr          $ra
-
-/*
- * 异常入口框架。
- * 第 5 次课实验会把 EENTRY 指向这里，并在 C 代码里打印异常信息。
- */
-    .section .text.exception, "ax"
-    .globl exception_entry
-
-exception_entry:
-    addi.d      $sp, $sp, -32
-    st.d        $ra, $sp, 24
-
-    /* ESTAT=0x5，ERA=0x6。这里先把两个 CSR 传给 C 处理函数。 */
-    csrrd       $a0, 0x5
-    csrrd       $a1, 0x6
-    bl          exception_handler
-
-    ld.d        $ra, $sp, 24
-    addi.d      $sp, $sp, 32
-    ertn
 
     .section .bss.stack, "aw", @nobits
     .align 12

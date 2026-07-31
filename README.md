@@ -2,19 +2,43 @@
 
 本仓库用于 LoongArch 汇编课程实验。课程资料按“2 节课 = 1 次课”组织，共 16 次课。若实际排课为一周 4 节课，则一个行政教学周通常连续完成两次课。
 
-当前阶段已整理第 1-2 次课验证：
+## 课次代码纯净原则
 
-- 第 1 次课：从 0 启动 LoongArch miniOS，跑通 QEMU Hello miniOS。
-- 第 2 次课：`.data/.bss` 初始化、内存寻址、C 与汇编混合启动。
+**每次课的代码通过 git tag 区分；除“本次课跑通所必需”的内容外，不提前混入后续课次的框架代码。**
 
-实验文档：
+| 原则 | 说明 |
+|---|---|
+| 按 tag 取代码 | 学生用 `git switch -c my-lab <tag>`，不要在混杂的全量树上做早期实验 |
+| 必需才保留 | 如第 1 次课必须有 UART/`printk` 才能 Hello；第 2 次课必须有 `clear_bss` 与最小 `string.S` |
+| 后续课后置 | 异常入口、系统调用、中断等**只在对应课次 tag 出现**，早期 tag 中不出现 |
+| `master` 含义 | 当前已发布到的最新课次纯净树（现为第 2 次课） |
 
-- 课程组织规则：[docs/course_structure.md](docs/course_structure.md)
-- 第 1 次课资料：[docs/week01/README.md](docs/week01/README.md)
-- 第 2 次课实验文档：[docs/week02/data_bss.md](docs/week02/data_bss.md)
+**第 1–2 次课主题固定**（工程入口）：
 
-后续异常、系统调用和中断实验保留源码框架，但默认启动路径暂不进入，避免影响
-第 1-2 次课跑通。
+- 第 1 次课：从 0 启动 LoongArch miniOS（tag：`week01-qemu-hello`）
+- 第 2 次课：`.data/.bss` 初始化与 C/汇编混合启动（tag：`week02-data-bss`）
+
+**从第 3 次课起**回填并系统化汇编基础（寄存器、基础指令、访存、程序设计、调用约定），再进入构建、调试、内核服务、板级与 Agent。详见本地 `docs/course_structure.md`。
+
+```bash
+git fetch --tags
+git switch -c my-week01-lab week01-qemu-hello
+git switch -c my-week02-lab week02-data-bss
+```
+
+### 已发布 tag 与源码范围
+
+| tag | 课次 | 源码范围（相对前一阶段的增量） |
+|---|---|---|
+| `week01-00-skeleton` | 第 1 次课检查点 | 仅有 `_start` 原地 halt |
+| `week01-01-stack-setup` | 第 1 次课检查点 | 设置 `$sp` |
+| `week01-02-kernel-main-empty` | 第 1 次课检查点 | `bl kernel_main`，主函数为空 |
+| `week01-03-printk-uart` | 第 1 次课检查点 | `printk` + UART，输出 Hello |
+| `week01-qemu-hello` | 第 1 次课验收 | 与 `week01-03` 相同，正式验收点 |
+| `week02-data-bss` | 第 2 次课验收 | `clear_bss` + `.data/.bss` 验证 + 最小 `string.S` |
+
+第 1 次课**不包含**：`clear_bss`、`lib/string.S`、异常、系统调用。  
+第 2 次课**不包含**：异常、系统调用、中断；`string.S` 仅为 C 调汇编演示用的最小实现（精讲在第 9 次课）。
 
 ## 平台优先级
 
@@ -104,6 +128,14 @@ gdb-multiarch build/minios.elf
 
 ## 第 1-2 次课阶段预期输出
 
+第 1 次课（`week01-qemu-hello`）：
+
+```text
+Hello miniOS on LoongArch64
+```
+
+第 2 次课（`week02-data-bss` / 当前 `master`）：
+
 ```text
 Hello miniOS on LoongArch64
 data section ok
@@ -111,24 +143,20 @@ bss section cleared
 week1-week2 check done
 ```
 
-其中第 1 次课只验收 `Hello miniOS on LoongArch64`；第 2 次课在此基础上验收 `.data/.bss` 相关三行输出。
-
-## 目录结构
+## 目录结构（第 2 次课）
 
 ```text
 miniOS/
-├── boot/       # 启动汇编、异常入口预留
-├── kernel/     # 内核主流程、printk、异常、系统调用框架
-├── lib/        # 汇编库函数
-├── include/    # 头文件
-├── scripts/    # 环境检查脚本
-├── docs/       # 课程资料、环境说明和移植说明
-├── user/       # 后续用户态实验预留目录
-├── tests/      # 测试说明
+├── boot/start.S      # 设栈、clear_bss、进入 kernel_main
+├── kernel/main.c     # Hello + .data/.bss 验证
+├── kernel/printk.c   # 串口输出
+├── kernel/linker.ld  # 入口与段布局（含 __bss_start/__bss_end）
+├── lib/string.S      # 最小 memset/memcpy/strlen
+├── include/          # printk/uart/string/types
 ├── Makefile
-└── README.md
+└── user/             # 后续课次再用（本次课不用）
 ```
 
-## 移植指南
+## 许可证与用途
 
-见 [QEMU→龙芯先锋板移植指南](docs/QEMU-to-Loongson-Pioneer-Porting-Guide.md)。
+仅用于课程教学与实验。
