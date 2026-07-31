@@ -1,6 +1,6 @@
 /*
  * miniOS 启动入口。
- * 第 1 次课：设栈 → 进入 kernel_main → halt。
+ * week01-02-kernel-main-empty：正式跳进 C，但 kernel_main 还是空的。
  */
 
     .section .text.boot, "ax"
