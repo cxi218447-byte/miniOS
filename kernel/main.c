@@ -1,5 +1,5 @@
 /*
- * week01-01：_start 尚未调用本函数，先保留空壳便于后续检查点衔接。
+ * week01-00-skeleton：_start 还没有调用这个函数，这里先留一个空壳。
  */
 
 #include "printk.h"

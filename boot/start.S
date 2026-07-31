@@ -1,14 +1,13 @@
 /*
  * miniOS 启动入口。
- * week01-01-stack-setup：设置好内核栈，但还没有进入 C。
+ * week01-00-skeleton：CPU 有入口，但什么都不做，原地打转。
  */
 
     .section .text.boot, "ax"
     .globl _start
 
 _start:
-    /* 设置内核栈。栈从高地址向低地址增长。 */
-    la.global   $sp, boot_stack_top
+    b           halt
 
 halt:
     idle        0
