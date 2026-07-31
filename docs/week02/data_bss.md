@@ -1,13 +1,13 @@
-# 第 2 周实验指导手册：.data/.bss 初始化与 C/汇编混合启动
+# 第 2 次课实验指导手册：.data/.bss 初始化与 C/汇编混合启动
 
-本手册用于《LoongArch 汇编语言》第 2 周自学与课堂实验。课程资料按“2 节课 = 1 个课程周次”组织，第 2 周对应课程第 3-4 节。若实际排课为一周 4 节课，本周通常安排在行政第 1 周的后半段。
+本手册用于《LoongArch 汇编语言》第 2 次课自学与课堂实验。课程资料按“2 节课 = 1 次课”组织，第 2 次课对应课程第 3-4 节。若实际排课为一周 4 节课，本次课通常安排在行政第 1 周的后半段。
 
-第 1 周已经回答：CPU 如何进入 C 函数，并把字符输出到终端。  
-第 2 周继续回答更接近真实 C 程序的问题：
+第 1 次课已经回答：CPU 如何进入 C 函数，并把字符输出到终端。  
+第 2 次课继续回答更接近真实 C 程序的问题：
 
 > 在没有操作系统和 C 运行库的裸机环境中，全局变量的初始状态由谁准备？`.data` 和 `.bss` 分别意味着什么？
 
-本周在第 1 周 Hello 链路之上，增加 `.bss` 清零与 C/汇编混合调用观察，形成完整验收输出。
+本次课在第 1 次课 Hello 链路之上，增加 `.bss` 清零与 C/汇编混合调用观察，形成完整验收输出。
 
 ```text
 _start
@@ -27,22 +27,22 @@ kernel_main()
 
 ## 1. 实验定位
 
-本实验是第 1 周启动路径的自然延伸。
+本实验是第 1 次课启动路径的自然延伸。
 
-第 1 周解决的是：
+第 1 次课解决的是：
 
 - 入口不在 `main()`，而在 `_start`
 - 进入 C 之前必须设置 `$sp`
 - 用 `printk()` + UART 输出 Hello
 
-第 2 周解决的是：
+第 2 次课解决的是：
 
 - 有初始值的全局变量放在哪里、如何读到
 - 无显式初始值的全局变量为什么必须清零
 - 启动汇编如何在进入 C 之前完成 `.bss` 清零
 - C 代码如何调用汇编实现的 `memset` / `memcpy` / `strlen`
 
-本周**不要求**你从零实现完整运行库，也不要求背完整 ABI。重点是：
+本次课**不要求**你从零实现完整运行库，也不要求背完整 ABI。重点是：
 
 1. 能跑通并记录真实输出  
 2. 能沿着源码解释 `.data/.bss`  
@@ -73,7 +73,7 @@ kernel_main()
 
 ### 2.3 AI 共学目标
 
-第 2 周起，允许在教师规定范围内使用 AI 辅助：
+第 2 次课起，允许在教师规定范围内使用 AI 辅助：
 
 - 解释源码与反汇编
 - 分析真实错误信息
@@ -87,7 +87,7 @@ kernel_main()
 
 ### 3.1 前置条件
 
-建议已完成第 1 周：
+建议已完成第 1 次课：
 
 - 能说明 `_start → kernel_main() → printk() → UART` 的基本路径
 - 能执行 `make clean && make && make run`，或能记录明确失败原因
@@ -104,7 +104,7 @@ kernel_main()
 | `loongarch64-linux-gnu-gcc` | 交叉编译 C/汇编 |
 | `loongarch64-linux-gnu-objdump` | 反汇编观察 |
 | `loongarch64-linux-gnu-nm` | 查看符号地址（可选） |
-| `gdb-multiarch` | 调试（可选，本周非强制） |
+| `gdb-multiarch` | 调试（可选，本次课非强制） |
 
 若工具尚未安装，先阅读：
 
@@ -125,7 +125,7 @@ cd /mnt/<盘符>/<你的课程工作目录>/miniOS
 
 ### 3.4 建议 Git 起点
 
-第 2 周建议从稳定 tag 创建个人实验分支，不要直接在课程远端分支上改：
+第 2 次课建议从稳定 tag 创建个人实验分支，不要直接在课程远端分支上改：
 
 ```bash
 git fetch --tags
@@ -142,9 +142,9 @@ Git 起点：当前分支 <branch-name>，尚未检出 week02-data-bss tag。
 
 ## 4. 背景知识：段（section）是什么
 
-编译、链接后的程序不是“一整块无差别内存”，而是按用途分成若干段。本周至少要理解下表。
+编译、链接后的程序不是“一整块无差别内存”，而是按用途分成若干段。本次课至少要理解下表。
 
-| 段 | 大致内容 | C 语言中常见对应 | 本周理解要求 |
+| 段 | 大致内容 | C 语言中常见对应 | 本次课理解要求 |
 |---|---|---|---|
 | `.text` | 机器指令 | 函数代码 | CPU 真正执行的代码 |
 | `.rodata` | 只读常量 | 字符串字面量等 | 只读，一般不修改 |
@@ -172,9 +172,9 @@ miniOS 是裸机程序，**没有**完整操作系统和 C 运行库，所以必
 
 ---
 
-## 5. 从第 1 周到第 2 周
+## 5. 从第 1 次课到第 2 次课
 
-### 5.1 第 1 周最小路径
+### 5.1 第 1 次课最小路径
 
 ```text
 QEMU 加载 build/minios.elf
@@ -190,7 +190,7 @@ printk() → UART
 Hello miniOS on LoongArch64
 ```
 
-### 5.2 第 2 周在路径上增加的关键一步
+### 5.2 第 2 次课在路径上增加的关键一步
 
 ```text
 QEMU 加载 build/minios.elf
@@ -199,22 +199,22 @@ CPU 进入 _start
  ↓
 设置 $sp
  ↓
-clear_bss          ← 本周新增关键步骤
+clear_bss          ← 本次课新增关键步骤
  ↓
 kernel_main()
- ├─ Hello 输出（保留第 1 周）
+ ├─ Hello 输出（保留第 1 次课）
  ├─ 验证 .data 可读
  └─ 验证 .bss 已清零
 ```
 
 可以这样记：
 
-> 第 1 周：让 CPU 安全进入 C。  
-> 第 2 周：让 C 代码看到“可信的全局变量初始状态”。
+> 第 1 次课：让 CPU 安全进入 C。  
+> 第 2 次课：让 C 代码看到“可信的全局变量初始状态”。
 
 ---
 
-## 6. 工程目录与本周重点文件
+## 6. 工程目录与本次课重点文件
 
 先观察工程目录：
 
@@ -222,10 +222,10 @@ kernel_main()
 ls
 ```
 
-本周重点文件：
+本次课重点文件：
 
 ```text
-boot/start.S        启动入口；本周重点看 clear_bss
+boot/start.S        启动入口；本次课重点看 clear_bss
 kernel/main.c       .data/.bss 验证逻辑
 kernel/linker.ld    定义 __bss_start / __bss_end 与各段布局
 lib/string.S        汇编实现的 memset / memcpy / strlen
@@ -311,7 +311,7 @@ Ctrl-a x
 
 ## 9. 预期输出与逐行解释
 
-第 2 周验收输出为：
+第 2 次课验收输出为：
 
 ```text
 Hello miniOS on LoongArch64
@@ -322,15 +322,15 @@ week1-week2 check done
 
 | 输出行 | 说明 | 主要对应代码 |
 |---|---|---|
-| `Hello miniOS on LoongArch64` | 第 1 周启动链路仍有效 | `kernel/main.c` 中 `printk(msg)` |
+| `Hello miniOS on LoongArch64` | 第 1 次课启动链路仍有效 | `kernel/main.c` 中 `printk(msg)` |
 | `data section ok` | 有初始值的全局字符串可读 | `data_message[]` + `memcpy`/`strlen` |
 | `bss section cleared` | 未初始化全局数组已被清零 | `bss_buffer` + `clear_bss` |
 | `week1-week2 check done` | 本阶段检查路径执行完毕 | `kernel/main.c` 末尾 `printk` |
 
 说明：
 
-- 当前代码路径会**同时保留**第 1 周 Hello 输出。
-- 第 2 周重点验收后三行，尤其是 `data section ok` 与 `bss section cleared`。
+- 当前代码路径会**同时保留**第 1 次课 Hello 输出。
+- 第 2 次课重点验收后三行，尤其是 `data section ok` 与 `bss section cleared`。
 - 若只有 Hello、没有后面三行，说明 `.data/.bss` 检查路径未按预期执行，需要按第 14 节排查。
 
 ---
@@ -362,7 +362,7 @@ static char data_message[] = "data section ok";
 按执行顺序理解：
 
 1. **输出 Hello**  
-   验证第 1 周路径：`printk("Hello miniOS on LoongArch64\n")`
+   验证第 1 次课路径：`printk("Hello miniOS on LoongArch64\n")`
 
 2. **验证 `.data`**  
    - 用 `memset` 把局部数组 `buf` 清零  
@@ -491,7 +491,7 @@ ENTRY(_start)
 .bss     ← __bss_start ... __bss_end
 ```
 
-### 12.2 本周最关键的两行
+### 12.2 本次课最关键的两行
 
 ```ld
 __bss_start = .;
@@ -555,7 +555,7 @@ size_t strlen(const char *s);
 
 `lib/string.S` 导出三个全局符号：
 
-| 函数 | 作用 | 本周在 main 中的用途 |
+| 函数 | 作用 | 本次课在 main 中的用途 |
 |---|---|---|
 | `memset` | 把 `n` 字节写成指定值 | 清零局部 `buf` |
 | `memcpy` | 复制 `n` 字节 | 把 `data_message` 拷到 `buf` |
@@ -579,7 +579,7 @@ memset:
     jr          $ra
 ```
 
-本周只需建立这些认知：
+本次课只需建立这些认知：
 
 1. **同名符号**：C 调用 `memset`，汇编用 `.globl memset` 导出  
 2. **统一约定**：参数通过约定寄存器传递（本阶段不必背完整 ABI，先知道“有约定”）  
@@ -703,7 +703,7 @@ memset
 
 ### 16.1 必须完成
 
-- 从第 2 周起点创建实验分支，或说明当前使用的分支/tag  
+- 从第 2 次课起点创建实验分支，或说明当前使用的分支/tag  
 - 执行环境检查并记录真实结果  
 - 执行 `make clean`、`make`、`make run`，或记录明确失败原因  
 - 若 QEMU 跑通，记录完整四行输出：
@@ -722,9 +722,9 @@ week1-week2 check done
 - `__bss_start` / `__bss_end` 是链接脚本提供的地址边界  
 - C 文件如何通过声明 + 链接调用汇编函数  
 
-### 16.3 不作为第 2 周验收
+### 16.3 不作为第 2 次课验收
 
-- 自己重写高性能 `memset`/`memcpy`（后续周次再深入）  
+- 自己重写高性能 `memset`/`memcpy`（后续课次再深入）  
 - 完整 LoongArch ABI 背诵  
 - 开发板移植  
 - 修改异常、系统调用、中断相关框架代码  
@@ -736,7 +736,7 @@ week1-week2 check done
 可直接复制下面结构撰写。
 
 ````markdown
-# 第 2 周实验报告：.data/.bss 初始化与 C/汇编混合启动
+# 第 2 次课实验报告：.data/.bss 初始化与 C/汇编混合启动
 
 ### 1. 实验环境
 
@@ -880,7 +880,7 @@ make run
 ```
 
 ```text
-请画出 _start -> 设置 sp -> clear_bss -> kernel_main 的文本流程图，并标注第 1 周和第 2 周新增部分。
+请画出 _start -> 设置 sp -> clear_bss -> kernel_main 的文本流程图，并标注第 1 次课和第 2 次课新增部分。
 ```
 
 ```text
@@ -910,15 +910,15 @@ make run
 
 ## 20. 拓展阅读与下一周预告
 
-完成本周必做内容后，可继续阅读：
+完成本次课必做内容后，可继续阅读：
 
-- `README.md`：仓库总体说明与第 1-2 周验收输出  
-- `lesson_plan.md`：本周教师教案（了解课堂节奏）  
-- `../week01/qemu_hello.md`：第 1 周启动路径复习  
-- `../course_structure.md`：16 周课程主线  
+- `README.md`：仓库总体说明与第 1-2 次课验收输出  
+- `lesson_plan.md`：本次课教师教案（了解课堂节奏）  
+- `../week01/qemu_hello.md`：第 1 次课启动路径复习  
+- `../course_structure.md`：16 次课课程主线  
 - `../QEMU-to-Loongson-Pioneer-Porting-Guide.md`：为何先 QEMU 再开发板  
 
-**第 3 周预告**：分支、循环与字符串输出——在已经能输出字符、能理解数据段的基础上，用控制流组织更复杂的输出逻辑。
+**第 3 次课预告**：分支、循环与字符串输出——在已经能输出字符、能理解数据段的基础上，用控制流组织更复杂的输出逻辑。
 
 ---
 

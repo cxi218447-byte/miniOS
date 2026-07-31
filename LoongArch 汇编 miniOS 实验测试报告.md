@@ -45,9 +45,9 @@ wsl --install -d Ubuntu --location "<你的课程工作目录>\env\wsl\Ubuntu"
 sh scripts/check-env.sh
 ```
 
-## 1. 第 1 周：从 0 启动 LoongArch miniOS
+## 1. 第 1 次课：从 0 启动 LoongArch miniOS
 
-课程周次说明：第 1 周对应课程第 1-2 节。若实际排课一周 4 节课，则行政第 1 周的第 1-2 节讲授本周内容。
+课次说明：第 1 次课对应课程第 1-2 节。若实际排课一周 4 节课，则行政第 1 周的第 1-2 节讲授本次课内容。
 
 实验目标：
 
@@ -117,9 +117,9 @@ Hello miniOS on LoongArch64
 - QEMU 无输出：检查 `-M virt`、`-nographic`、串口基地址和链接地址。
 - 链接失败：检查 `kernel/linker.ld` 是否包含 `ENTRY(_start)`。
 
-## 2. 第 2 周：.data/.bss 初始化、内存寻址、C 与汇编混合编译
+## 2. 第 2 次课：.data/.bss 初始化、内存寻址、C 与汇编混合编译
 
-课程周次说明：第 2 周对应课程第 3-4 节。若实际排课一周 4 节课，则行政第 1 周的第 3-4 节可以讲授本周内容。
+课次说明：第 2 次课对应课程第 3-4 节。若实际排课一周 4 节课，则行政第 1 周的第 3-4 节可以讲授本次课内容。
 
 实验目标：
 
@@ -189,7 +189,7 @@ week1-week2 check done
 
 - `.bss` 未清零：检查链接脚本是否导出 `__bss_start` 和 `__bss_end`。
 - C 调不到汇编函数：检查 `lib/string.S` 中是否声明 `.globl`。
-- 输出乱码或无输出：先回到第 1 周，只验证 `printk("A\n")`。
+- 输出乱码或无输出：先回到第 1 次课，只验证 `printk("A\n")`。
 - 程序异常停止：检查栈地址、链接地址和 QEMU/开发板加载地址是否一致。
 
 ## 本轮验证结论
@@ -197,7 +197,7 @@ week1-week2 check done
 已完成：
 
 - Git 仓库初始化。
-- 第 1-2 个课程周次代码路径收敛。
+- 第 1-2 次课代码路径收敛。
 - QEMU 优先的 Makefile。
 - 环境检查脚本。
 - 《QEMU→龙芯先锋板移植指南》初版。
@@ -213,4 +213,4 @@ week1-week2 check done
 2. 安装 LoongArch64 GCC、QEMU、Make、GDB。
 3. 执行 `sh scripts/check-env.sh`。
 4. 执行 `make clean && make && make run`。
-5. 串口输出与第 2 周预期一致后，再继续第 3 个课程周次。
+5. 串口输出与第 2 次课预期一致后，再继续第 3 次课。

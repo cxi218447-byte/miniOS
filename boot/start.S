@@ -35,7 +35,7 @@ clear_bss:
 
 /*
  * 异常入口框架。
- * 第 5 周实验会把 EENTRY 指向这里，并在 C 代码里打印异常信息。
+ * 第 5 次课实验会把 EENTRY 指向这里，并在 C 代码里打印异常信息。
  */
     .section .text.exception, "ax"
     .globl exception_entry

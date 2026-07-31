@@ -9,7 +9,7 @@ void exception_init(void)
 
     /*
      * EENTRY(CSR 0x0c) 保存异常入口地址。
-     * 第 5 周实验可以打开真实异常触发代码观察输出。
+     * 第 5 次课实验可以打开真实异常触发代码观察输出。
      */
     __asm__ volatile("csrwr %0, 0xc" : : "r"(entry) : "memory");
 }

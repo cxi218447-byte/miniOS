@@ -158,9 +158,9 @@ loongarch64-linux-gnu-objcopy
 gdb-multiarch
 ```
 
-## 8. 第 1 周验证命令
+## 8. 第 1 次课验证命令
 
-当前阶段只做第 1 周 QEMU Hello miniOS：
+当前阶段只做第 1 次课 QEMU Hello miniOS：
 
 ```bash
 make clean
@@ -168,17 +168,17 @@ make
 make run
 ```
 
-第 1 周验收输出：
+第 1 次课验收输出：
 
 ```text
 Hello miniOS on LoongArch64
 ```
 
-如果输出不一致，停在第 1 周排查，不继续第 2 周。
+如果输出不一致，停在第 1 次课排查，不继续第 2 次课。
 
 ## 9. 退出 QEMU 和 WSL
 
-如果 `make run` 正在运行 QEMU，看到第 1 周输出后，可以按下面的按键退出 QEMU：
+如果 `make run` 正在运行 QEMU，看到第 1 次课输出后，可以按下面的按键退出 QEMU：
 
 ```text
 Ctrl + A

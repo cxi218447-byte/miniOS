@@ -1,8 +1,8 @@
-# 第 1 周实验指导手册：QEMU Hello miniOS
+# 第 1 次课实验指导手册：QEMU Hello miniOS
 
-本手册用于《LoongArch 汇编语言》第 1 周自学实验。课程资料按“2 节课 = 1 个课程周次”组织，第 1 周对应课程第 1-2 节。目标不是写一个完整操作系统，而是把一个最小 miniOS 从第一条指令启动起来，并在 QEMU 串口中看到第一行输出。
+本手册用于《LoongArch 汇编语言》第 1 次课自学实验。课程资料按“2 节课 = 1 次课”组织，第 1 次课对应课程第 1-2 节。目标不是写一个完整操作系统，而是把一个最小 miniOS 从第一条指令启动起来，并在 QEMU 串口中看到第一行输出。
 
-第 1 周只关注 Hello 链路：
+第 1 次课只关注 Hello 链路：
 
 ```text
 CPU
@@ -20,13 +20,13 @@ Hello miniOS
 
 ## 1. 实验定位
 
-本实验是整门课程的起点。后续的 `.data/.bss`、分支循环、函数调用、异常、中断、系统调用和开发板迁移，都会建立在本周的启动路径之上。
+本实验是整门课程的起点。后续的 `.data/.bss`、分支循环、函数调用、异常、中断、系统调用和开发板迁移，都会建立在本次课的启动路径之上。
 
-本周你要先回答一个核心问题：
+本次课你要先回答一个核心问题：
 
 > 在没有操作系统、没有 C 运行库、没有 `printf()` 的情况下，CPU 如何执行到 C 函数，并把字符输出到终端？
 
-本周不要求修改实验代码。重点是能运行、能观察、能解释。
+本次课不要求修改实验代码。重点是能运行、能观察、能解释。
 
 ## 2. 学习目标
 
@@ -76,22 +76,22 @@ cd /mnt/<盘符>/<你的课程工作目录>/miniOS
 ls
 ```
 
-本周需要认识这些文件和目录：
+本次课需要认识这些文件和目录：
 
 ```text
-boot/             启动汇编代码，本周重点看 boot/start.S
+boot/             启动汇编代码，本次课重点看 boot/start.S
 kernel/           内核 C 代码、链接脚本和最小输出实现
 include/          头文件，保存函数声明和硬件地址定义
-lib/              后续周次使用的汇编库函数
+lib/              后续课次使用的汇编库函数
 scripts/          环境检查脚本
 docs/             实验文档和移植说明
 Makefile          编译、运行、调试入口
 ```
 
-本周重点文件：
+本次课重点文件：
 
 - `boot/start.S`：内核入口，设置栈，调用 C 函数。
-- `kernel/main.c`：本周从 `kernel_main()` 观察 Hello 输出。
+- `kernel/main.c`：本次课从 `kernel_main()` 观察 Hello 输出。
 - `kernel/printk.c`：最小字符串输出。
 - `include/uart.h`：QEMU `virt` 平台 UART 地址定义。
 - `kernel/linker.ld`：告诉链接器内核入口和各段布局。
@@ -158,20 +158,20 @@ build/minios.elf
 make run
 ```
 
-第 1 周最小验收输出为：
+第 1 次课最小验收输出为：
 
 ```text
 Hello miniOS on LoongArch64
 ```
 
-如果直接使用 `master`，可能已经包含第 2 周 `.data/.bss` 检查代码，所以你还可能看到类似后续验证输出。第 1 周建议从 tag 创建实验分支：
+如果直接使用 `master`，可能已经包含第 2 次课 `.data/.bss` 检查代码，所以你还可能看到类似后续验证输出。第 1 次课建议从 tag 创建实验分支：
 
 ```bash
 git fetch --tags
 git switch -c my-week01-lab week01-qemu-hello
 ```
 
-第 1 周只验收 `Hello miniOS on LoongArch64` 这条启动输出链路；不要把 `.data/.bss` 当成本周必须解释的内容。
+第 1 次课只验收 `Hello miniOS on LoongArch64` 这条启动输出链路；不要把 `.data/.bss` 当成本次课必须解释的内容。
 
 如果看不到输出，先检查：
 
@@ -200,7 +200,7 @@ Ctrl-a x
 
 miniOS 是裸机程序。QEMU 加载 `build/minios.elf` 后，CPU 从链接脚本指定的入口开始执行。这个入口不是 C 语言的 `main()`，而是汇编符号 `_start`。
 
-本周执行路径是：
+本次课执行路径是：
 
 ```text
 QEMU 加载 build/minios.elf
@@ -236,7 +236,7 @@ boot/start.S
 
 阅读时可以把它理解成“进入 C 语言之前的准备代码”。C 函数需要栈来保存返回地址、局部变量和调用现场。如果不先设置 `$sp`，C 代码即使能跳进去，也可能很快运行异常。
 
-本周不要求你掌握所有 LoongArch 指令。先抓住启动汇编的职责：
+本次课不要求你掌握所有 LoongArch 指令。先抓住启动汇编的职责：
 
 - 提供最早的入口。
 - 建立最小运行环境。
@@ -257,13 +257,13 @@ kernel/main.c
 kernel_main
 ```
 
-本周只观察它如何输出：
+本次课只观察它如何输出：
 
 ```text
 Hello miniOS on LoongArch64
 ```
 
-如果文件中还有后续周次检查代码，先不要展开。本周先回答：
+如果文件中还有后续课次检查代码，先不要展开。本次课先回答：
 
 - 谁调用了 `kernel_main()`？
 - `kernel_main()` 调用了哪个输出函数？
@@ -366,7 +366,7 @@ GDB 调试是课堂 Demo 的重要内容。自学时如果暂时没有跑通 GDB
 | `qemu-system-loongarch64: command not found` | 没有安装 QEMU LoongArch 支持 | 安装 `qemu-system-misc` |
 | `make run` 后没有 Hello 输出 | 编译失败、镜像不存在或 QEMU 未正确启动 | 先重新执行 `make clean` 和 `make`，确认 `build/minios.elf` 存在 |
 | 不知道如何退出 QEMU | `-nographic` 模式占用终端 | 使用 `Ctrl-a x` |
-| 输出中还有 `.data/.bss` | 当前分支包含第 2 周代码 | 第 1 周只验收 Hello 输出链路 |
+| 输出中还有 `.data/.bss` | 当前分支包含第 2 次课代码 | 第 1 次课只验收 Hello 输出链路 |
 | 反汇编命令打不开 `less` | 系统没有安装 `less` | 直接去掉管道：`loongarch64-linux-gnu-objdump -d build/minios.elf` |
 
 如果错误不在表中，报告中至少记录：
@@ -378,7 +378,7 @@ GDB 调试是课堂 Demo 的重要内容。自学时如果暂时没有跑通 GDB
 
 ## 15. 实验验收标准
 
-本周验收分为三类。
+本次课验收分为三类。
 
 必须完成：
 
@@ -399,7 +399,7 @@ Hello miniOS on LoongArch64
 - 为什么 miniOS 使用 `printk()` 而不是 `printf()`。
 - UART 在本实验中的作用。
 
-不作为第 1 周验收：
+不作为第 1 次课验收：
 
 - 解释 `.data/.bss` 初始化细节。
 - 修改启动代码。
@@ -411,7 +411,7 @@ Hello miniOS on LoongArch64
 可以直接按下面结构撰写实验报告。
 
 ````markdown
-# 第 1 周实验报告：QEMU Hello miniOS
+# 第 1 次课实验报告：QEMU Hello miniOS
 
 ### 1. 实验环境
 
@@ -499,7 +499,7 @@ Hello miniOS on LoongArch64
 
 ## 17. AI 共学要求
 
-第 1 周可以使用 AI 辅助理解，但必须保留学生自己的阅读和实验过程。
+第 1 次课可以使用 AI 辅助理解，但必须保留学生自己的阅读和实验过程。
 
 允许：
 
@@ -511,7 +511,7 @@ Hello miniOS on LoongArch64
 不允许：
 
 - 不读源码，直接让 AI 代写实验报告。
-- 让 AI 修改或生成本周实验代码。
+- 让 AI 修改或生成本次课实验代码。
 - 没有运行命令，却让 AI 根据代码推测“实验通过”。
 
 不允许让 AI 直接生成实验代码。
@@ -538,11 +538,11 @@ Hello miniOS on LoongArch64
 
 ## 19. 拓展阅读
 
-完成本周必做内容后，可以继续阅读：
+完成本次课必做内容后，可以继续阅读：
 
 - `README.md`：了解仓库总体说明。
 - `../course_release_index.md`：了解每周实验和 tag 发布方式。
 - `../manual_wsl_ubuntu_install.md`：补齐 WSL Ubuntu 环境安装。
 - `../QEMU-to-Loongson-Pioneer-Porting-Guide.md`：了解为什么所有实验先在 QEMU 跑通，再考虑迁移。
 
-拓展阅读不属于第 1 周验收重点。第 1 周最重要的是把 Hello 链路真实跑通，并能沿着源码解释它。
+拓展阅读不属于第 1 次课验收重点。第 1 次课最重要的是把 Hello 链路真实跑通，并能沿着源码解释它。
