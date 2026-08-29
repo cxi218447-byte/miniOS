@@ -11,25 +11,32 @@
 | 按 tag 取代码 | 学生用 `git switch -c my-lab <tag>`，不要在混杂的全量树上做早期实验 |
 | 必需才保留 | 如第 1 次课必须有 UART/`printk` 才能 Hello；第 2 次课必须有 `clear_bss` 与最小 `string.S` |
 | 后续课后置 | 异常入口、系统调用、中断等**只在对应课次 tag 出现**，早期 tag 中不出现 |
-| `master` 含义 | 当前已发布到的最新课次纯净树（现为第 2 次课） |
+| `master` 含义 | 当前已发布到的最新课次纯净树（现为第 4 次课） |
 
 **第 1–2 次课主题固定**（工程入口）：
 
 - 第 1 次课：从 0 启动 LoongArch miniOS（tag：`week01-qemu-hello`）
 - 第 2 次课：`.data/.bss` 初始化与 C/汇编混合启动（tag：`week02-data-bss`）
 
-**从第 3 次课起**回填并系统化汇编基础（寄存器、基础指令、访存、程序设计、调用约定），再进入构建、调试、内核服务、板级与 Agent。详见本地 `docs/course_structure.md`。
+**从第 3 次课起**回填并系统化汇编基础（寄存器、基础指令、访存、程序设计、调用约定），再进入构建、调试、内核服务、板级与 Agent：
+
+- 第 3 次课：寄存器、数据表示与基础指令（tag：`week03-regs-alu`）
+- 第 4 次课：访存指令与内存数据组织 + 浮点基础（tag：`week04-load-store`）
+
+详见本地 `docs/course_structure.md`。
 
 ```bash
 git fetch --tags
-git switch -c my-week01-lab week01-qemu-hello   # 第 1 次课：本地实验分支
-git switch -c my-week02-lab week02-data-bss     # 第 2 次课：另建本地分支
+git switch -c my-week01-lab week01-qemu-hello     # 第 1 次课：本地实验分支
+git switch -c my-week02-lab week02-data-bss       # 第 2 次课：另建本地分支
+git switch -c my-week03-lab week03-regs-alu       # 第 3 次课：另建本地分支
+git switch -c my-week04-lab week04-load-store     # 第 4 次课：另建本地分支
 ```
 
 **说明（重要）：**
 
-- `week01-qemu-hello` / `week02-data-bss` 是**远程已发布的课程 tag**（全班统一起点）。  
-- `my-week01-lab` / `my-week02-lab` 是**你在本机新建的个人实验分支**，**默认不会、也不需要**出现在 GitHub 上。  
+- `week01-qemu-hello` / `week02-data-bss` / `week03-regs-alu` / `week04-load-store` 是**远程已发布的课程 tag**（全班统一起点）。  
+- `my-week01-lab` … `my-week04-lab` 是**你在本机新建的个人实验分支**，**默认不会、也不需要**出现在 GitHub 上。  
 - 命令含义是「从 tag 复制一份到本地再改」，不是「去远程领取一个叫 my-weekXX-lab 的分支」。  
 - 课程远程只维护 `master` + 各课次 tag；个人分支请留在本地（详见实验指导书与 `docs/week01/student_git_tag_guide.md`）。
 
@@ -43,9 +50,13 @@ git switch -c my-week02-lab week02-data-bss     # 第 2 次课：另建本地分
 | `week01-03-printk-uart` | 第 1 次课检查点 | `printk` + UART，输出 Hello |
 | `week01-qemu-hello` | 第 1 次课验收 | 与 `week01-03` 相同，正式验收点 |
 | `week02-data-bss` | 第 2 次课验收 | `clear_bss` + `.data/.bss` 验证 + 最小 `string.S` |
+| `week03-regs-alu` | 第 3 次课验收 | `lib/regs_alu.S` + `include/regs_alu.h`：教材第 3 章 §3.1 每类运算指令 ≥1 条 |
+| `week04-load-store` | 第 4 次课验收 | `lib/mem_fp.S` + `include/mem_fp.h`：§3.2 访存（`ld/st` 全家）+ 第 4 章浮点（`fadd`/位模式/转换） |
 
 第 1 次课**不包含**：`clear_bss`、`lib/string.S`、异常、系统调用。  
-第 2 次课**不包含**：异常、系统调用、中断；`string.S` 仅为 C 调汇编演示用的最小实现（精讲在第 9 次课）。
+第 2 次课**不包含**：异常、系统调用、中断；`string.S` 仅为 C 调汇编演示用的最小实现（精讲在第 9 次课）。  
+第 3 次课**不包含**：访存精讲（仅 `st.b` 点到）、浮点实现、异常、系统调用、中断。  
+第 4 次课**不包含**：分支/循环系统讲解（`b/bl/jirl` 只读懂示例，第 5 次课系统学）、多核实现（LL/SC、DBAR/IBAR 只做纸面推演）、异常、系统调用、中断。
 
 ## 平台优先级
 
@@ -157,7 +168,7 @@ gdb-multiarch build/minios.elf
 (gdb) target remote :1234
 ```
 
-## 第 1-2 次课阶段预期输出
+## 第 1-4 次课阶段预期输出
 
 第 1 次课（`week01-qemu-hello`）：
 
@@ -165,7 +176,7 @@ gdb-multiarch build/minios.elf
 Hello miniOS on LoongArch64
 ```
 
-第 2 次课（`week02-data-bss` / 当前 `master`）：
+第 2 次课（`week02-data-bss`）：
 
 ```text
 Hello miniOS on LoongArch64
@@ -174,18 +185,55 @@ bss section cleared
 week1-week2 check done
 ```
 
-## 目录结构（第 2 次课）
+第 3 次课（`week03-regs-alu`）：
+
+```text
+Hello miniOS on LoongArch64
+data section ok
+bss section cleared
+arith add/sub: (3+5)-2 = 6
+arith mul: 6*7 = 42
+logic andi: 0x1234 & 0xff = 0x34
+shift slli: 5<<1 = 10
+cond slt: (3<5) = 1
+bit ext.w.b: 0x7f -> 127
+arith temp: (7+1)+(7+1) = 16
+mem st.b: see clear_bss
+branch: see bl/jr/beq in start.S
+misc idle: halt loop below
+float: textbook ch4, not run here
+week03-regs-alu check done
+```
+
+第 4 次课（`week04-load-store` / 当前 `master`，在第 3 次课输出之后追加）：
+
+```text
+mem ld.d/st.d: copied 0x1122334455667788
+mem ld.bu/st.b: 40+2 = 42
+mem ld.b  (signed)   0x80 -> -128
+mem ld.bu (unsigned) 0x80 -> 128
+float fadd.s: 1.5+2.5 -> bits 0x40800000
+float fadd.d: 1.5+2.5 -> (int)4
+float int->double->int: 7 -> 7
+week04-load-store check done
+```
+
+以上输出已在 WSL Ubuntu + `loongarch64-linux-gnu-gcc` + `qemu-system-loongarch64` 下实际构建运行验证。
+
+## 目录结构（第 4 次课）
 
 ```text
 miniOS/
 ├── boot/start.S      # 设栈、clear_bss、进入 kernel_main
-├── kernel/main.c     # Hello + .data/.bss 验证
+├── kernel/main.c     # Hello + .data/.bss + 第3次课ALU验收 + 第4次课访存/浮点验收
 ├── kernel/printk.c   # 串口输出
 ├── kernel/linker.ld  # 入口与段布局（含 __bss_start/__bss_end）
 ├── lib/string.S      # 最小 memset/memcpy/strlen
-├── include/          # printk/uart/string/types
+├── lib/regs_alu.S    # 第3次课：§3.1 每类运算指令 ≥1 条代表
+├── lib/mem_fp.S      # 第4次课：§3.2 访存 + 第4章浮点代表指令
+├── include/          # printk/uart/string/types/regs_alu/mem_fp
 ├── Makefile
-└── user/             # 后续课次再用（本次课不用）
+└── user/             # 后续课次再用（本阶段不用）
 ```
 
 ## 许可证与用途
