@@ -1,12 +1,14 @@
 /*
  * 内核 C 入口。
  * 第 1 次课：Hello；第 2 次课：.data/.bss；
- * 第 3 次课：按教材第 3 章每类指令至少 1 条的验收输出。
+ * 第 3 次课：按教材第 3 章每类指令至少 1 条的验收输出；
+ * 第 4 次课：精讲 §3.2 访存与第 4 章浮点的验收输出。
  */
 
 #include "printk.h"
 #include "string.h"
 #include "regs_alu.h"
+#include "mem_fp.h"
 
 static char bss_buffer[16];
 static char data_message[] = "data section ok";
@@ -73,6 +75,17 @@ void kernel_main(void)
     char buf[32];
     const char *msg = "Hello miniOS on LoongArch64\n";
     long r;
+
+    /*
+     * 使能浮点单元：CSR.EUEN（0x2）的 bit0 = FPE。
+     * 复位后浮点默认关闭，直接执行 fadd.s 等指令会触发“指令未使能”异常
+     * （异常处理机制第 12 次课才讲，这里只做前提设置，不展开）。
+     * csrwr rd, csr：把 rd 写入 CSR，并把 CSR 旧值读回 rd（此处旧值不用）。
+     */
+    {
+        unsigned long euen = 1;
+        __asm__ volatile("csrwr %0, 0x2" : "+r"(euen));
+    }
 
     printk(msg);
 
@@ -141,6 +154,59 @@ void kernel_main(void)
     printk("float: textbook ch4, not run here\n");
 
     printk("week03-regs-alu check done\n");
+
+    /* ---- 第 4 次课：§3.2 访存 + 第 4 章浮点验收 ---- */
+    {
+        long mem_area[2] = {0x1122334455667788L, 0};
+        unsigned char byte_area[3] = {40, 2, 0};
+        float fs;
+        double fd;
+        long bits, di;
+
+        /* ld.d/st.d：把 mem_area[0] 复制到 mem_area[1] */
+        mem_copy_d(mem_area);
+        printk("mem ld.d/st.d: copied 0x");
+        print_u64_hex((unsigned long)mem_area[1]);
+        printk("\n");
+
+        /* ld.bu/st.b：40 + 2 写回 byte_area[2] */
+        mem_byte_add3(byte_area);
+        printk("mem ld.bu/st.b: 40+2 = ");
+        print_i64_dec(byte_area[2]);
+        printk("\n");
+
+        /* ld.b vs ld.bu：同一个 0x80，一个变负数，一个仍是 128 */
+        {
+            signed char neg_byte = (signed char)0x80;
+            printk("mem ld.b  (signed)   0x80 -> ");
+            print_i64_dec(mem_load_byte_signed(&neg_byte));
+            printk("\nmem ld.bu (unsigned) 0x80 -> ");
+            print_i64_dec(mem_load_byte_unsigned((unsigned char *)&neg_byte));
+            printk("\n");
+        }
+
+        /* fadd.s：1.5f + 2.5f = 4.0f，顺带看它的 IEEE754 位模式 */
+        fs = fp_add_s(1.5f, 2.5f);
+        bits = fp_bits_s(fs);
+        printk("float fadd.s: 1.5+2.5 -> bits 0x");
+        print_u64_hex((unsigned long)(bits & 0xffffffffUL));
+        printk("\n");
+
+        /* fadd.d：1.5 + 2.5 = 4.0，转回整数打印（暂无浮点转字符串） */
+        fd = fp_add_d(1.5, 2.5);
+        di = fp_double_to_int(fd);
+        printk("float fadd.d: 1.5+2.5 -> (int)");
+        print_i64_dec(di);
+        printk("\n");
+
+        /* 整数 -> 双精度 -> 整数：验证 movgr2fr.w/ffint.d.w 与 ftintrz.w.d/movfr2gr.s 是一对可逆操作 */
+        di = fp_double_to_int(fp_int_to_double(7));
+        printk("float int->double->int: 7 -> ");
+        print_i64_dec(di);
+        printk("\n");
+    }
+
+    printk("week04-load-store check done\n");
 
     while (1) {
         __asm__ volatile("idle 0");
