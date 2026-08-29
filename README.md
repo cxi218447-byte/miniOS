@@ -1,6 +1,6 @@
 # LoongArch 汇编 miniOS 实验
 
-本仓库用于 LoongArch 汇编课程实验。课程资料按“2 节课 = 1 次课”组织，共 16 次课。若实际排课为一周 4 节课，则一个行政教学周通常连续完成两次课。
+本仓库用于 LoongArch 汇编课程实验。课程资料按“2 节课 = 1 次课”组织，共 14 次课（第 3、4 次课各为 4 节课；2026-08-29 起的学时重排与课次合并详见 `docs/course_structure.md`）。若实际排课为一周 4 节课，则一个行政教学周通常连续完成两次课。
 
 ## 课次代码纯净原则
 
@@ -15,43 +15,43 @@
 
 **第 1–2 次课主题固定**（工程入口）：
 
-- 第 1 次课：从 0 启动 LoongArch miniOS（tag：`week01-qemu-hello`）
-- 第 2 次课：`.data/.bss` 初始化与 C/汇编混合启动（tag：`week02-data-bss`）
+- 第 1 次课：从 0 启动 LoongArch miniOS（tag：`01-qemu-hello`）
+- 第 2 次课：`.data/.bss` 初始化与 C/汇编混合启动（tag：`02-data-bss`）
 
 **从第 3 次课起**回填并系统化汇编基础（寄存器、基础指令、访存、程序设计、调用约定），再进入构建、调试、内核服务、板级与 Agent：
 
-- 第 3 次课：寄存器、数据表示与基础指令（tag：`week03-regs-alu`）
-- 第 4 次课：访存指令与内存数据组织 + 浮点基础（tag：`week04-load-store`）
+- 第 3 次课：寄存器、数据表示与基础指令（tag：`03-regs-alu`）
+- 第 4 次课：访存指令与内存数据组织 + 浮点基础（tag：`04-load-store`）
 
 详见本地 `docs/course_structure.md`。
 
 ```bash
 git fetch --tags
-git switch -c my-week01-lab week01-qemu-hello     # 第 1 次课：本地实验分支
-git switch -c my-week02-lab week02-data-bss       # 第 2 次课：另建本地分支
-git switch -c my-week03-lab week03-regs-alu       # 第 3 次课：另建本地分支
-git switch -c my-week04-lab week04-load-store     # 第 4 次课：另建本地分支
+git switch -c my-01-lab 01-qemu-hello     # 第 1 次课：本地实验分支
+git switch -c my-02-lab 02-data-bss       # 第 2 次课：另建本地分支
+git switch -c my-03-lab 03-regs-alu       # 第 3 次课：另建本地分支
+git switch -c my-04-lab 04-load-store     # 第 4 次课：另建本地分支
 ```
 
 **说明（重要）：**
 
-- `week01-qemu-hello` / `week02-data-bss` / `week03-regs-alu` / `week04-load-store` 是**远程已发布的课程 tag**（全班统一起点）。  
-- `my-week01-lab` … `my-week04-lab` 是**你在本机新建的个人实验分支**，**默认不会、也不需要**出现在 GitHub 上。  
-- 命令含义是「从 tag 复制一份到本地再改」，不是「去远程领取一个叫 my-weekXX-lab 的分支」。  
-- 课程远程只维护 `master` + 各课次 tag；个人分支请留在本地（详见实验指导书与 `docs/week01/student_git_tag_guide.md`）。
+- `01-qemu-hello` / `02-data-bss` / `03-regs-alu` / `04-load-store` 是**远程已发布的课程 tag**（全班统一起点）。2026-08-29 起技术编号去掉 `week` 前缀改为纯数字；原 `week01-qemu-hello` 等 tag 已在远程删除，如你之前已 fetch 过旧 tag，请重新 `git fetch --tags --prune` 同步。  
+- `my-01-lab` … `my-04-lab` 是**你在本机新建的个人实验分支**，**默认不会、也不需要**出现在 GitHub 上。  
+- 命令含义是「从 tag 复制一份到本地再改」，不是「去远程领取一个叫 my-NN-lab 的分支」。  
+- 课程远程只维护 `master` + 各课次 tag；个人分支请留在本地（详见实验指导书与 `docs/01/student_git_tag_guide.md`）。
 
 ### 已发布 tag 与源码范围
 
 | tag | 课次 | 源码范围（相对前一阶段的增量） |
 |---|---|---|
-| `week01-00-skeleton` | 第 1 次课检查点 | 仅有 `_start` 原地 halt |
-| `week01-01-stack-setup` | 第 1 次课检查点 | 设置 `$sp` |
-| `week01-02-kernel-main-empty` | 第 1 次课检查点 | `bl kernel_main`，主函数为空 |
-| `week01-03-printk-uart` | 第 1 次课检查点 | `printk` + UART，输出 Hello |
-| `week01-qemu-hello` | 第 1 次课验收 | 与 `week01-03` 相同，正式验收点 |
-| `week02-data-bss` | 第 2 次课验收 | `clear_bss` + `.data/.bss` 验证 + 最小 `string.S` |
-| `week03-regs-alu` | 第 3 次课验收 | `lib/regs_alu.S` + `include/regs_alu.h`：教材第 3 章 §3.1 每类运算指令 ≥1 条 |
-| `week04-load-store` | 第 4 次课验收 | `lib/mem_fp.S` + `include/mem_fp.h`：§3.2 访存（`ld/st` 全家）+ 第 4 章浮点（`fadd`/位模式/转换） |
+| `01-00-skeleton` | 第 1 次课检查点 | 仅有 `_start` 原地 halt |
+| `01-01-stack-setup` | 第 1 次课检查点 | 设置 `$sp` |
+| `01-02-kernel-main-empty` | 第 1 次课检查点 | `bl kernel_main`，主函数为空 |
+| `01-03-printk-uart` | 第 1 次课检查点 | `printk` + UART，输出 Hello |
+| `01-qemu-hello` | 第 1 次课验收 | 与 `01-03` 相同，正式验收点 |
+| `02-data-bss` | 第 2 次课验收 | `clear_bss` + `.data/.bss` 验证 + 最小 `string.S` |
+| `03-regs-alu` | 第 3 次课验收 | `lib/regs_alu.S` + `include/regs_alu.h`：教材第 3 章 §3.1 每类运算指令 ≥1 条 |
+| `04-load-store` | 第 4 次课验收 | `lib/mem_fp.S` + `include/mem_fp.h`：§3.2 访存（`ld/st` 全家）+ 第 4 章浮点（`fadd`/位模式/转换） |
 
 第 1 次课**不包含**：`clear_bss`、`lib/string.S`、异常、系统调用。  
 第 2 次课**不包含**：异常、系统调用、中断；`string.S` 仅为 C 调汇编演示用的最小实现（精讲在第 9 次课）。  
@@ -170,13 +170,13 @@ gdb-multiarch build/minios.elf
 
 ## 第 1-4 次课阶段预期输出
 
-第 1 次课（`week01-qemu-hello`）：
+第 1 次课（`01-qemu-hello`）：
 
 ```text
 Hello miniOS on LoongArch64
 ```
 
-第 2 次课（`week02-data-bss`）：
+第 2 次课（`02-data-bss`）：
 
 ```text
 Hello miniOS on LoongArch64
@@ -185,7 +185,7 @@ bss section cleared
 week1-week2 check done
 ```
 
-第 3 次课（`week03-regs-alu`）：
+第 3 次课（`03-regs-alu`）：
 
 ```text
 Hello miniOS on LoongArch64
@@ -205,7 +205,7 @@ float: textbook ch4, not run here
 week03-regs-alu check done
 ```
 
-第 4 次课（`week04-load-store` / 当前 `master`，在第 3 次课输出之后追加）：
+第 4 次课（`04-load-store` / 当前 `master`，在第 3 次课输出之后追加）：
 
 ```text
 mem ld.d/st.d: copied 0x1122334455667788
@@ -218,7 +218,7 @@ float int->double->int: 7 -> 7
 week04-load-store check done
 ```
 
-以上输出已在 WSL Ubuntu + `loongarch64-linux-gnu-gcc` + `qemu-system-loongarch64` 下实际构建运行验证。
+以上输出已在 WSL Ubuntu + `loongarch64-linux-gnu-gcc` + `qemu-system-loongarch64` 下实际构建运行验证。控制台里的 `week03-regs-alu check done` / `week04-load-store check done` / `week1-week2 check done` 是内核代码里编译进去的字符串常量，随 `03-regs-alu`/`04-load-store` 等 tag 一并发布验收，本次改名只影响 tag/分支/文档编号，不改这些已验证过的运行时输出。
 
 ## 目录结构（第 4 次课）
 
