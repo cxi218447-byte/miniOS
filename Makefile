@@ -16,7 +16,7 @@ CFLAGS  += $(CFLAGS_EXTRA)
 ASFLAGS := $(CFLAGS)
 LDFLAGS := -T kernel/linker.ld -nostdlib -static
 
-# 第 1–4 次课源文件（后续课次在对应 tag 中再追加，勿提前混入）
+# 第 1–5 次课源文件（后续课次在对应 tag 中再追加，勿提前混入）
 SRCS_C := \
 	kernel/main.c \
 	kernel/printk.c
@@ -25,7 +25,8 @@ SRCS_S := \
 	boot/start.S \
 	lib/string.S \
 	lib/regs_alu.S \
-	lib/mem_fp.S
+	lib/mem_fp.S \
+	lib/branch_loop.S
 
 OBJS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(SRCS_C))
 OBJS += $(patsubst %.S,$(BUILD_DIR)/%.o,$(SRCS_S))

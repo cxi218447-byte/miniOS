@@ -2,13 +2,15 @@
  * 内核 C 入口。
  * 第 1 次课：Hello；第 2 次课：.data/.bss；
  * 第 3 次课：按教材第 3 章每类指令至少 1 条的验收输出；
- * 第 4 次课：精讲 §3.2 访存与第 4 章浮点的验收输出。
+ * 第 4 次课：精讲 §3.2 访存与第 4 章浮点的验收输出；
+ * 第 5 次课：分支、循环与汇编程序设计基础的验收输出。
  */
 
 #include "printk.h"
 #include "string.h"
 #include "regs_alu.h"
 #include "mem_fp.h"
+#include "branch_loop.h"
 
 static char bss_buffer[16];
 static char data_message[] = "data section ok";
@@ -207,6 +209,43 @@ void kernel_main(void)
     }
 
     printk("week04-load-store check done\n");
+
+    /* ---- 第 5 次课：分支、循环与汇编程序设计基础验收 ---- */
+    {
+        static const unsigned char bytes[5] = {0, 3, 0, 7, 9};
+
+        /* while 计数：beqz 判空 + addi.d 步进 + b 回跳 */
+        r = bl_sum1n(5);
+        printk("loop  while sum: 1+..+5 = ");
+        print_i64_dec(r);
+        printk("\n");
+
+        /* if-else：beq 版 */
+        r = bl_are_equal(3, 3);
+        printk("branch beq  : (3==3) = ");
+        print_i64_dec(r);
+        printk("\n");
+
+        /* if-else：bne 版，与上面语义相同，条件方向相反 */
+        r = bl_not_equal_demo(3, 4);
+        printk("branch bne  : (3==4) = ");
+        print_i64_dec(r);
+        printk("\n");
+
+        /* for 风格计数循环：bnez 判非零 + beq 判越界退出 */
+        r = bl_count_nonzero(bytes, 5);
+        printk("loop  bnez count nonzero {0,3,0,7,9} = ");
+        print_i64_dec(r);
+        printk("\n");
+
+        /* 字符串遍历骨架（第 2 次课已有 strlen，见 lib/string.S） */
+        r = (long)strlen(data_message);
+        printk("loop  strlen(data_message) = ");
+        print_i64_dec(r);
+        printk("\n");
+    }
+
+    printk("week05-branch-loop check done\n");
 
     while (1) {
         __asm__ volatile("idle 0");
