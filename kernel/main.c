@@ -3,7 +3,8 @@
  * 第 1 次课：Hello；第 2 次课：.data/.bss；
  * 第 3 次课：按教材第 3 章每类指令至少 1 条的验收输出；
  * 第 4 次课：精讲 §3.2 访存与第 4 章浮点的验收输出；
- * 第 5 次课：分支、循环与汇编程序设计基础的验收输出。
+ * 第 5 次课：分支、循环与汇编程序设计基础的验收输出；
+ * 第 6 次课：函数调用约定与栈帧的验收输出。
  */
 
 #include "printk.h"
@@ -11,6 +12,7 @@
 #include "regs_alu.h"
 #include "mem_fp.h"
 #include "branch_loop.h"
+#include "stack_abi.h"
 
 static char bss_buffer[16];
 static char data_message[] = "data section ok";
@@ -246,6 +248,23 @@ void kernel_main(void)
     }
 
     printk("week05-branch-loop check done\n");
+
+    /* ---- 第 6 次课：函数调用约定与栈帧验收 ---- */
+    {
+        /* 叶子函数：不碰 $ra */
+        r = sa_add_one(41);
+        printk("leaf  sa_add_one: 41+1 = ");
+        print_i64_dec(r);
+        printk("\n");
+
+        /* 非叶子函数：栈帧保存/恢复 $ra，内部两次 bl sa_add */
+        r = sa_add3(1, 2, 3);
+        printk("frame sa_add3 (bl x2, $ra saved): 1+2+3 = ");
+        print_i64_dec(r);
+        printk("\n");
+    }
+
+    printk("week06-stack-abi check done\n");
 
     while (1) {
         __asm__ volatile("idle 0");
