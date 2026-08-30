@@ -7,4 +7,7 @@ void printk(const char *s);
  * 供 exception_handler 打印 ESTAT/ERA 使用。 */
 void printk_hex(unsigned long v);
 
+/* 第 11 次课起：打印一个无符号数的十进制形式，供 irq_dispatch 打印 tick 计数使用。 */
+void printk_udec(unsigned long v);
+
 #endif

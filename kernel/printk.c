@@ -24,6 +24,26 @@ void printk(const char *s)
     uart_puts(s);
 }
 
+void printk_udec(unsigned long v)
+{
+    char buf[24];
+    int i = 0;
+    int j;
+
+    if (v == 0) {
+        uart_putc('0');
+        return;
+    }
+
+    while (v > 0) {
+        buf[i++] = (char)('0' + (v % 10));
+        v /= 10;
+    }
+    for (j = i - 1; j >= 0; j--) {
+        uart_putc(buf[j]);
+    }
+}
+
 void printk_hex(unsigned long v)
 {
     const char *digits = "0123456789abcdef";

@@ -1,9 +1,16 @@
 /*
  * 第 10 次课：异常入口初始化与最小处理函数。
  * 先能"看见"异常（打印 ESTAT/ERA），再谈恢复、分类处理等策略。
+ * 第 11 次课：LoongArch 的中断也是通过同一个 EENTRY 入口送达的——
+ * ESTAT.Ecode（bit[21:16]）为 0 时表示"中断类"（INT），此时分发给
+ * irq_dispatch；非 0 则是同步异常，按第 10 次课的方式打印并跳过。
  */
 #include "exception.h"
 #include "printk.h"
+#include "irq.h"
+
+#define ESTAT_ECODE_MASK 0x3fUL
+#define ESTAT_ECODE_SHIFT 16
 
 void exception_init(void)
 {
@@ -15,6 +22,17 @@ void exception_init(void)
 
 unsigned long exception_handler(unsigned long estat, unsigned long era)
 {
+    unsigned long ecode = (estat >> ESTAT_ECODE_SHIFT) & ESTAT_ECODE_MASK;
+
+    if (ecode == 0) {
+        /*
+         * 中断类：ERA 硬件已经给出正确的续跑点（中断可能打在任意一条
+         * 指令中间，不存在"触发指令本身"这个概念），原样返回，不加 4。
+         */
+        irq_dispatch(estat);
+        return era;
+    }
+
     printk("[exception] ESTAT=0x");
     printk_hex(estat);
     printk(" ERA=0x");

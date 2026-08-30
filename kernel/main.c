@@ -10,7 +10,9 @@
  * 第 9 次课：sys_write/syscall_dispatch 的验收输出
  *   （UART 驱动沿用第 1 次课的 uart_putc/uart_puts）；
  * 第 10 次课：exception_entry/exception_init 的验收输出
- *   （用 break 指令主动触发一次可控异常，观察 ESTAT/ERA）。
+ *   （用 break 指令主动触发一次可控异常，观察 ESTAT/ERA）；
+ * 第 11 次课：定时器中断实验的验收输出
+ *   （timer_init 使能周期性定时器中断，idle 等待若干次真实 tick）。
  */
 
 #include "printk.h"
@@ -21,6 +23,7 @@
 #include "stack_abi.h"
 #include "syscall.h"
 #include "exception.h"
+#include "irq.h"
 
 static char bss_buffer[16];
 static char data_message[] = "data section ok";
@@ -362,6 +365,27 @@ void kernel_main(void)
     printk("resumed after break: ertn returned control here\n");
 
     printk("week10-trap-irq check done\n");
+
+    /* ---- 第 11 次课：定时器中断实验 ---- */
+    {
+        /* TCFG InitVal，教学取值：在 QEMU virt 上实测约每秒数次 tick，
+         * 具体节拍数与宿主机模拟速度有关，不代表真实物理时间单位。 */
+        const unsigned long TIMER_COUNT = 0x1000000UL;
+
+        timer_init(TIMER_COUNT);
+        printk("timer_init: periodic timer interrupt enabled\n");
+
+        /* idle 让 CPU 停下等中断；定时器 tick 到来时硬件唤醒 CPU，
+         * 走 exception_entry -> exception_handler -> irq_dispatch，
+         * 处理完 ertn 回到这里，while 条件重新判断。 */
+        while (irq_ticks() < 5) {
+            __asm__ volatile("idle 0");
+        }
+        timer_stop();
+        printk("collected 5 timer ticks via interrupt, timer_stop() called\n");
+    }
+
+    printk("week11-irq-kernel-recap check done\n");
 
     while (1) {
         __asm__ volatile("idle 0");
