@@ -6,7 +6,9 @@
  * 第 5 次课：分支、循环与汇编程序设计基础的验收输出；
  * 第 6 次课：函数调用约定与栈帧的验收输出；
  * 第 8 次课：memset/memcpy/strlen 边界测试的验收输出
- *   （实现见 lib/string.S，第 2 次课已具备，本课只做边界验收）。
+ *   （实现见 lib/string.S，第 2 次课已具备，本课只做边界验收）；
+ * 第 9 次课：sys_write/syscall_dispatch 的验收输出
+ *   （UART 驱动沿用第 1 次课的 uart_putc/uart_puts）。
  */
 
 #include "printk.h"
@@ -15,6 +17,7 @@
 #include "mem_fp.h"
 #include "branch_loop.h"
 #include "stack_abi.h"
+#include "syscall.h"
 
 static char bss_buffer[16];
 static char data_message[] = "data section ok";
@@ -317,6 +320,32 @@ void kernel_main(void)
     }
 
     printk("week08-libc-asm check done\n");
+
+    /* ---- 第 9 次课：UART 输出子系统 + sys_write/syscall_dispatch 验收 ---- */
+    {
+        static const char sys_msg[] = "sys_write via dispatch\n";
+
+        /* 合法 fd=1(stdout)：走 syscall_dispatch -> sys_write -> uart_putc，
+         * 与 printk 是同一条底层路径，只是多了一层编号化入口。 */
+        r = syscall_dispatch(SYS_WRITE, 1, (long)sys_msg, (long)(sizeof(sys_msg) - 1));
+        printk("sys_write fd=1 : return len = ");
+        print_i64_dec(r);
+        printk("\n");
+
+        /* 非法 fd：接口面收窄，直接拒绝，不碰硬件 */
+        r = syscall_dispatch(SYS_WRITE, 99, (long)sys_msg, (long)(sizeof(sys_msg) - 1));
+        printk("sys_write fd=99: return = ");
+        print_i64_dec(r);
+        printk(" (应为 -1，非法 fd 被拒绝)\n");
+
+        /* 未知系统调用号：分发器同样返回 -1，而不是崩溃 */
+        r = syscall_dispatch(0x2333, 1, (long)sys_msg, 1);
+        printk("dispatch nr=?? : return = ");
+        print_i64_dec(r);
+        printk(" (应为 -1，未知系统调用号)\n");
+    }
+
+    printk("week09-uart-syscall check done\n");
 
     while (1) {
         __asm__ volatile("idle 0");
