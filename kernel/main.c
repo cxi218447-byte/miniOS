@@ -4,7 +4,9 @@
  * 第 3 次课：按教材第 3 章每类指令至少 1 条的验收输出；
  * 第 4 次课：精讲 §3.2 访存与第 4 章浮点的验收输出；
  * 第 5 次课：分支、循环与汇编程序设计基础的验收输出；
- * 第 6 次课：函数调用约定与栈帧的验收输出。
+ * 第 6 次课：函数调用约定与栈帧的验收输出；
+ * 第 8 次课：memset/memcpy/strlen 边界测试的验收输出
+ *   （实现见 lib/string.S，第 2 次课已具备，本课只做边界验收）。
  */
 
 #include "printk.h"
@@ -16,6 +18,14 @@
 
 static char bss_buffer[16];
 static char data_message[] = "data section ok";
+
+static void print_char(char c)
+{
+    char s[2];
+    s[0] = c;
+    s[1] = '\0';
+    printk(s);
+}
 
 static void print_u64_dec(unsigned long v)
 {
@@ -265,6 +275,48 @@ void kernel_main(void)
     }
 
     printk("week06-stack-abi check done\n");
+
+    /* ---- 第 8 次课：memset/memcpy/strlen 边界测试 ---- */
+    {
+        char buf1[4] = { 'X', 'X', 'X', 'X' };
+        char buf2[4] = { 'X', 'X', 'X', 'X' };
+
+        /* memset n=0：契约上不得改动任何字节 */
+        memset(buf1, 'Z', 0);
+        printk("memset n=0 : buf[0]='");
+        print_char(buf1[0]);
+        printk("' (应仍为 X，未改动)\n");
+
+        /* memset n=1：只写第 0 字节，buf[1] 不受影响 */
+        memset(buf1, 'Z', 1);
+        printk("memset n=1 : buf[0]='");
+        print_char(buf1[0]);
+        printk("' buf[1]='");
+        print_char(buf1[1]);
+        printk("' (应为 Z / X)\n");
+
+        /* memcpy n=0：契约上 dst 不得改动 */
+        memcpy(buf2, "AB", 0);
+        printk("memcpy n=0: dst[0]='");
+        print_char(buf2[0]);
+        printk("' (应仍为 X，未改动)\n");
+
+        /* memcpy n=1：只搬第 0 字节，dst[1] 不受影响 */
+        memcpy(buf2, "AB", 1);
+        printk("memcpy n=1: dst[0]='");
+        print_char(buf2[0]);
+        printk("' dst[1]='");
+        print_char(buf2[1]);
+        printk("' (应为 A / X)\n");
+
+        /* strlen 边界：空串长度为 0 */
+        r = (long)strlen("");
+        printk("strlen \"\"  : len = ");
+        print_i64_dec(r);
+        printk(" (应为 0；非空串已在第 5 次课验收)\n");
+    }
+
+    printk("week08-libc-asm check done\n");
 
     while (1) {
         __asm__ volatile("idle 0");
