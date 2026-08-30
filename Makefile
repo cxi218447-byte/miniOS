@@ -16,11 +16,12 @@ CFLAGS  += $(CFLAGS_EXTRA)
 ASFLAGS := $(CFLAGS)
 LDFLAGS := -T kernel/linker.ld -nostdlib -static
 
-# 第 1–9 次课源文件（后续课次在对应 tag 中再追加，勿提前混入）
+# 第 1–10 次课源文件（后续课次在对应 tag 中再追加，勿提前混入）
 SRCS_C := \
 	kernel/main.c \
 	kernel/printk.c \
-	kernel/syscall.c
+	kernel/syscall.c \
+	kernel/exception.c
 
 SRCS_S := \
 	boot/start.S \

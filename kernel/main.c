@@ -8,7 +8,9 @@
  * 第 8 次课：memset/memcpy/strlen 边界测试的验收输出
  *   （实现见 lib/string.S，第 2 次课已具备，本课只做边界验收）；
  * 第 9 次课：sys_write/syscall_dispatch 的验收输出
- *   （UART 驱动沿用第 1 次课的 uart_putc/uart_puts）。
+ *   （UART 驱动沿用第 1 次课的 uart_putc/uart_puts）；
+ * 第 10 次课：exception_entry/exception_init 的验收输出
+ *   （用 break 指令主动触发一次可控异常，观察 ESTAT/ERA）。
  */
 
 #include "printk.h"
@@ -18,6 +20,7 @@
 #include "branch_loop.h"
 #include "stack_abi.h"
 #include "syscall.h"
+#include "exception.h"
 
 static char bss_buffer[16];
 static char data_message[] = "data section ok";
@@ -346,6 +349,19 @@ void kernel_main(void)
     }
 
     printk("week09-uart-syscall check done\n");
+
+    /* ---- 第 10 次课：异常入口与异常上下文验收 ---- */
+    exception_init();
+    printk("exception_init: EENTRY set to exception_entry\n");
+    /*
+     * 主动触发一次可控异常（break：软件断点异常，不是硬件故障）。
+     * exception_entry 会保存 $ra、读 ESTAT/ERA、bl 到 exception_handler
+     * 打印它们，再 ertn 回到这条指令之后——不会卡死或复位。
+     */
+    __asm__ volatile("break 0");
+    printk("resumed after break: ertn returned control here\n");
+
+    printk("week10-trap-irq check done\n");
 
     while (1) {
         __asm__ volatile("idle 0");
