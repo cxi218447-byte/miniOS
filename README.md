@@ -11,7 +11,7 @@
 | 按 tag 取代码 | 学生用 `git switch -c my-lab <tag>`，不要在混杂的全量树上做早期实验 |
 | 必需才保留 | 如第 1 次课必须有 UART/`printk` 才能 Hello；第 2 次课必须有 `clear_bss` 与最小 `string.S` |
 | 后续课后置 | 异常入口、系统调用、中断等**只在对应课次 tag 出现**，早期 tag 中不出现 |
-| `master` 含义 | 当前已发布到的最新课次纯净树（现为第 12 次课；第 11 次课暂无代码检查点，见下） |
+| `master` 含义 | 当前已发布到的最新课次纯净树（现为第 12 次课） |
 
 **第 1–2 次课主题固定**（工程入口）：
 
@@ -28,8 +28,8 @@
 - 第 8 次课：`memset`/`memcpy`/`strlen` 汇编实现（tag：`08-libc-asm`）
 - 第 9 次课：UART 驱动、输出子系统与系统调用 `sys_write`（tag：`09-uart-syscall`）
 - 第 10 次课：异常与中断处理（理论部分）（tag：`10-trap-irq`）
-- 第 11 次课：中断/定时器实验 + miniOS 内核服务整理（讲义/实验指导书已发布，暂无代码检查点）
-- 第 12 次课：板级迁移 + 综合实验：从 miniOS 到 Agent OS（tag：`12-board-agent-demo`，与 `10-trap-irq` 同一代码状态——板级迁移需要真实 2K0300 硬件，综合展示直接复用已有 `kernel_main`）
+- 第 11 次课：中断/定时器实验 + miniOS 内核服务整理（tag：`11-irq-kernel-recap`）
+- 第 12 次课：板级迁移 + 综合实验：从 miniOS 到 Agent OS（tag：`12-board-agent-demo`，与 `11-irq-kernel-recap` 同一代码状态——板级迁移需要真实 2K0300 硬件，综合展示直接复用已有 `kernel_main`）
 
 详见本地 `docs/course_structure.md`。
 
@@ -45,12 +45,13 @@ git switch -c my-07-lab 07-build-debug    # 第 7 次课：另建本地分支
 git switch -c my-08-lab 08-libc-asm       # 第 8 次课：另建本地分支
 git switch -c my-09-lab 09-uart-syscall   # 第 9 次课：另建本地分支
 git switch -c my-10-lab 10-trap-irq       # 第 10 次课：另建本地分支
+git switch -c my-11-lab 11-irq-kernel-recap  # 第 11 次课：另建本地分支
 git switch -c my-12-lab 12-board-agent-demo  # 第 12 次课：另建本地分支
 ```
 
 **说明（重要）：**
 
-- `01-qemu-hello` … `10-trap-irq`、`12-board-agent-demo` 是**远程已发布的课程 tag**（全班统一起点）。2026-08-29 起技术编号去掉 `week` 前缀改为纯数字；原 `week01-qemu-hello` 等 tag 已在远程删除，如你之前已 fetch 过旧 tag，请重新 `git fetch --tags --prune` 同步。  
+- `01-qemu-hello` … `12-board-agent-demo` 是**远程已发布的课程 tag**（全班统一起点）。2026-08-29 起技术编号去掉 `week` 前缀改为纯数字；原 `week01-qemu-hello` 等 tag 已在远程删除，如你之前已 fetch 过旧 tag，请重新 `git fetch --tags --prune` 同步。  
 - `my-01-lab` … `my-12-lab` 是**你在本机新建的个人实验分支**，**默认不会、也不需要**出现在 GitHub 上。  
 - 命令含义是「从 tag 复制一份到本地再改」，不是「去远程领取一个叫 my-NN-lab 的分支」。  
 - 课程远程只维护 `master` + 各课次 tag；个人分支请留在本地（详见实验指导书与 `docs/01/student_git_tag_guide.md`）。
@@ -73,7 +74,8 @@ git switch -c my-12-lab 12-board-agent-demo  # 第 12 次课：另建本地分�
 | `08-libc-asm` | 第 8 次课验收 | `kernel/main.c` 新增 `memset`/`memcpy`/`strlen` 边界测试（实现沿用第 2 次课 `lib/string.S`） |
 | `09-uart-syscall` | 第 9 次课验收 | `kernel/syscall.c` + `include/syscall.h`：`sys_write`/`syscall_dispatch`（UART 驱动沿用第 1 次课） |
 | `10-trap-irq` | 第 10 次课验收 | `boot/start.S` 新增 `exception_entry`；`kernel/exception.c` + `include/exception.h`：`exception_init`/`exception_handler` |
-| `12-board-agent-demo` | 第 12 次课验收 | 与 `10-trap-irq` 相同代码：板级迁移需要真实硬件，综合展示复用已有 `kernel_main` |
+| `11-irq-kernel-recap` | 第 11 次课验收 | `boot/start.S` `exception_entry` 升级为144字节完整寄存器保存；`kernel/irq.c` + `include/irq.h`：`timer_init`/`irq_dispatch`/`timer_stop`，`exception_handler` 新增 `Ecode==0` 中断分支 |
+| `12-board-agent-demo` | 第 12 次课验收 | 与 `11-irq-kernel-recap` 相同代码：板级迁移需要真实硬件，综合展示复用已有 `kernel_main` |
 
 第 1 次课**不包含**：`clear_bss`、`lib/string.S`、异常、系统调用。  
 第 2 次课**不包含**：异常、系统调用、中断；`string.S` 仅为 C 调汇编演示用的最小实现（精讲在第 8 次课）。  
@@ -85,6 +87,7 @@ git switch -c my-12-lab 12-board-agent-demo  # 第 12 次课：另建本地分�
 第 8 次课**不包含**：按 8 字节对齐的优化实现（仅课堂讨论方向，不要求实现）、异常、系统调用、中断。  
 第 9 次课**不包含**：真正的用户态陷入指令（教学阶段内核内直接调用 `syscall_dispatch`）、中断。  
 第 10 次课**不包含**：中断/定时器代码实现（留到第 11 次课）；`exception_handler` 只演示 `break` 触发的同步异常，不识别具体 Ecode 分类处理。  
+第 11 次课**不包含**：除定时器外的其他中断源（如 UART 接收中断）；用户态/多任务调度。  
 第 12 次课**不包含**：真实 2K0300 板级验证（无硬件）、Agent Runtime 的实际调度/隔离实现（仅讨论）。
 
 ## 平台优先级
