@@ -145,8 +145,13 @@ sudo apt install -y make qemu-system-misc \
 
 **如果这条 `apt install` 报 `Unable to locate package gcc-loongarch64-linux-gnu` /
 `binutils-loongarch64-linux-gnu`**：不是操作错了，是 Ubuntu 22.04 官方源里本来
-就没有这两个包。改装 Ubuntu 26.04（跟现有 22.04 并列共存，不用卸载旧的），按
-[docs/manual_wsl_ubuntu26_install.md](docs/manual_wsl_ubuntu26_install.md) 操作即可。
+就没有这两个包。两条补救路线选一条走：
+
+- [docs/manual_wsl_ubuntu26_install.md](docs/manual_wsl_ubuntu26_install.md)：
+  改装 Ubuntu 26.04（跟现有 22.04 并列共存，不用卸载旧的），仓库里已经有这两个
+  包，最省事。
+- [docs/manual_wsl_ubuntu22_toolchain_build.md](docs/manual_wsl_ubuntu22_toolchain_build.md)：
+  留在现有 22.04 上，自己装预编译工具链 + 编译 QEMU。
 
 Windows 如果还没有 WSL Ubuntu，可在管理员 PowerShell 中执行：
 
