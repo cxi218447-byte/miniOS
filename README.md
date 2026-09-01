@@ -143,6 +143,11 @@ sudo apt install -y make qemu-system-misc \
   gdb-multiarch
 ```
 
+**如果这条 `apt install` 报 `Unable to locate package gcc-loongarch64-linux-gnu` /
+`binutils-loongarch64-linux-gnu`**：不是操作错了，是 Ubuntu 22.04 官方源里本来
+就没有这两个包。改装 Ubuntu 26.04（跟现有 22.04 并列共存，不用卸载旧的），按
+[docs/manual_wsl_ubuntu26_install.md](docs/manual_wsl_ubuntu26_install.md) 操作即可。
+
 Windows 如果还没有 WSL Ubuntu，可在管理员 PowerShell 中执行：
 
 ```powershell
