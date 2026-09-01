@@ -162,7 +162,7 @@ wsl --install -d Ubuntu --location "<你的课程工作目录>\env\wsl\Ubuntu"
 然后进入 Ubuntu，在仓库目录对应的 `/mnt/<盘符>/<你的课程工作目录>/miniOS` 下执行上面的 `apt`
 安装命令。
 
-手工安装步骤见 [docs/manual_wsl_ubuntu_install.md](docs/manual_wsl_ubuntu_install.md)。
+手工安装步骤见 [docs/manual_wsl_ubuntu22_toolchain_build.md](docs/manual_wsl_ubuntu22_toolchain_build.md)。
 
 ## 编译和运行（先进入 Ubuntu，再 make）
 
