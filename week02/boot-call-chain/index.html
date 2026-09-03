@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 2 周：miniOS 启动调用链</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#F5F7FA;
+    --ink:#101826; --ink-soft:#48566B; --ink-faint:#8593A8; --line:#C7D0DC;
+    --accent-boot:#A85A26;   --accent-boot-bg:#FBEEE5;
+    --accent-main:#17324F;   --accent-main-bg:#EAF0F6;
+    --accent-printk:#146B63; --accent-printk-bg:#E4F3F1;
+    --accent-string:#6B4C93; --accent-string-bg:#F0EAF8;
+    --accent-linker:#67728A; --accent-linker-bg:#EDEFF3;
+    --mmio:#8A3A3A; --mmio-bg:#FBEBEA;
+  }
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans',system-ui,sans-serif; margin:0;}
+  .page{max-width:1080px; margin:0 auto; padding:44px 22px 72px;}
+
+  code, .mono{font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace;}
+
+  header.top{border-bottom:1px solid var(--line); padding-bottom:22px; margin-bottom:30px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink-soft); letter-spacing:.06em; text-transform:uppercase;}
+  .home-link{float:right; text-decoration:none; font-weight:700; color:var(--ink-soft); font-size:13px;}
+  h1{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:clamp(1.9rem,4.2vw,2.5rem); margin:6px 0 10px; text-wrap:balance; letter-spacing:.01em;}
+  .lede{max-width:66ch; color:var(--ink-soft); font-size:15.5px; line-height:1.65;}
+  .lede b{color:var(--ink); font-weight:600;}
+
+  h2{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:1.5rem; margin:0 0 4px; letter-spacing:.01em;}
+  .section{margin-top:46px;}
+  .section-intro{color:var(--ink-soft); font-size:14.5px; max-width:70ch; margin:0 0 18px;}
+
+  /* phases */
+  .phases{display:flex; flex-wrap:wrap; gap:0; align-items:stretch;}
+  .phase-card{flex:1 1 240px; background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:16px 18px; position:relative;}
+  .phase-num{font-family:'Barlow Condensed',sans-serif; font-size:12.5px; font-weight:600; color:var(--accent-main); letter-spacing:.08em; text-transform:uppercase;}
+  .phase-card h3{font-family:'Barlow Condensed',sans-serif; font-size:1.2rem; margin:2px 0 8px; font-weight:600;}
+  .phase-card p{font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 10px;}
+  .phase-card .ex{display:block; font-size:11.5px; color:var(--ink-faint); background:var(--surface-2); border-radius:2px; padding:6px 8px; overflow-x:auto; white-space:nowrap;}
+  .phase-arrow{flex:0 0 34px; display:flex; align-items:center; justify-content:center; color:var(--ink-faint); font-size:20px;}
+  @media (max-width:760px){
+    .phases{flex-direction:column;}
+    .phase-arrow{display:none;}
+    .phase-card{border-top:none;}
+    .phase-card + .phase-card{border-top:none;}
+  }
+
+  /* diagram */
+  .diagram-scroll{overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:6px;}
+  .diagram-scroll svg{display:block; min-width:880px; width:100%; height:auto;}
+  figure{margin:0;}
+  figcaption{margin-top:10px; font-size:13px; color:var(--ink-soft); max-width:78ch; line-height:1.55;}
+
+  svg text{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+  svg .svg-title{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:16px;}
+  svg .svg-tag{font-size:9.5px; fill:var(--ink-faint);}
+  svg .svg-code{font-size:11px; fill:var(--ink);}
+  svg .svg-note{font-size:9px; fill:var(--ink-faint);}
+  svg .svg-label{font-size:10px; fill:var(--ink-soft);}
+  svg .svg-h2{font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:13px; fill:var(--ink);}
+
+  .box-boot{fill:var(--accent-boot-bg); stroke:var(--accent-boot);}
+  .box-main{fill:var(--accent-main-bg); stroke:var(--accent-main);}
+  .box-printk{fill:var(--accent-printk-bg); stroke:var(--accent-printk);}
+  .box-string{fill:var(--accent-string-bg); stroke:var(--accent-string);}
+  .box-linker{fill:var(--accent-linker-bg); stroke:var(--accent-linker); stroke-dasharray:3 3;}
+  .box-mmio{fill:var(--mmio-bg); stroke:var(--mmio);}
+  .box-dead{fill:var(--surface-2); stroke:var(--ink-faint); stroke-dasharray:3 3;}
+
+  .t-boot{fill:var(--accent-boot);} .t-main{fill:var(--accent-main);} .t-printk{fill:var(--accent-printk);}
+  .t-string{fill:var(--accent-string);} .t-linker{fill:var(--accent-linker);} .t-mmio{fill:var(--mmio);}
+
+  .arrow{stroke:var(--accent-main); stroke-width:1.6; fill:none;}
+  .arrow-dashed{stroke:var(--accent-linker); stroke-width:1.4; fill:none; stroke-dasharray:4 4;}
+
+  /* xref table */
+  table{width:100%; border-collapse:collapse; font-size:13.5px; background:var(--surface); border:1px solid var(--line); border-radius:4px; overflow:hidden;}
+  thead th{text-align:left; font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft); background:var(--surface-2); padding:10px 14px; border-bottom:1px solid var(--line);}
+  tbody td{padding:10px 14px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  td .mono, th .mono{font-size:12.5px;}
+  .table-scroll{overflow-x:auto;}
+
+  /* pitfalls */
+  .pitfalls{display:flex; flex-direction:column; gap:14px;}
+  .pitfall{display:grid; grid-template-columns:28px 1fr; gap:12px; background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent-boot); border-radius:3px; padding:14px 16px;}
+  .pitfall .n{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:18px; color:var(--accent-boot);}
+  .pitfall h4{margin:0 0 4px; font-size:14.5px; font-weight:600;}
+  .pitfall p{margin:0; font-size:13.5px; color:var(--ink-soft); line-height:1.55;}
+  .pitfall code{background:var(--surface-2); padding:1px 5px; border-radius:2px; font-size:12.5px; color:var(--ink);}
+
+  footer{margin-top:52px; padding-top:18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--ink-faint);}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="top">
+    <a class="home-link" href="../">返回第 2 周</a>
+    <div class="eyebrow">第 2 次课 · tag 02-data-bss</div>
+    <h1>从 QEMU 启动到 kernel_main 的完整调用链</h1>
+    <p class="lede">
+      不少同学反映"文件之间的调用关系连不起来"——根源通常不是某一行代码看不懂，
+      而是没分清<b>编译期</b>（每个文件各自变成 .o）、<b>链接期</b>（linker.ld 把符号拼成真实地址）、
+      <b>运行期</b>（QEMU 真正执行 bl / jr）这三层。下面先过一遍三层关系，再给出
+      <code>boot/start.S → kernel/main.c → kernel/printk.c / lib/string.S</code>
+      的完整运行期调用图，对应 <code>docs/02/lab.md</code> 的 Task3–Task5。
+    </p>
+  </header>
+
+  <section class="section">
+    <h2>先分清三个阶段</h2>
+    <p class="section-intro">"调用关系连不上"九成发生在这里：以为 <code>bl clear_bss</code> 是文本意义上的跳转，其实它要等链接器把地址填进去才成立。</p>
+    <div class="phases">
+      <div class="phase-card">
+        <div class="phase-num">01 · 编译</div>
+        <h3>各文件互不知情</h3>
+        <p><code>start.S</code>、<code>main.c</code>、<code>string.S</code>… 分别独立编译成 <code>.o</code>。此时 <code>bl kernel_main</code> 里的 <code>kernel_main</code> 只是一个待解析的符号名，编译器不检查它在别的文件里是否存在。</p>
+        <span class="ex mono">gcc -c start.S -o build/boot/start.o</span>
+      </div>
+      <div class="phase-arrow">→</div>
+      <div class="phase-card">
+        <div class="phase-num">02 · 链接</div>
+        <h3>ld 把符号拼成地址</h3>
+        <p><code>kernel/linker.ld</code> 决定各段的摆放地址；<code>ld</code> 收集所有 <code>.o</code> 里 <code>.globl</code> 导出的符号（<code>clear_bss</code>、<code>memset</code>…），把每处引用替换成真实地址，同时算出 <code>__bss_start/__bss_end</code>。</p>
+        <span class="ex mono">ld -T kernel/linker.ld *.o -o minios.elf</span>
+      </div>
+      <div class="phase-arrow">→</div>
+      <div class="phase-card">
+        <div class="phase-num">03 · 运行</div>
+        <h3>PC 真正跳转</h3>
+        <p>QEMU 把 ELF 加载进内存，PC 设为 <code>ENTRY(_start)</code> 指定的地址。从这一刻起，<code>bl / jr</code> 才是真正发生的函数调用与返回——下面的图画的就是这一层。</p>
+        <span class="ex mono">qemu-system-loongarch64 -kernel minios.elf</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>运行期调用图</h2>
+    <p class="section-intro">按源文件着色；实线箭头 = 真实发生的 <code>bl</code> 调用 / <code>jr $ra</code> 返回，虚线箭头 = 链接期符号引用或本次课不会被执行的路径。</p>
+
+    <div class="diagram-scroll">
+      <figure>
+        <svg viewBox="0 0 980 1150" role="img" aria-label="miniOS 第2次课启动调用图：QEMU 加载 ELF 后 PC 跳到 boot/start.S 的 _start，_start 设栈后调用 clear_bss 清零 .bss 并返回，再调用 kernel/main.c 的 kernel_main；kernel_main 依次调用 printk（经 kernel/printk.c 的 uart_puts/uart_putc 写入 UART0_BASE MMIO）和 lib/string.S 的 memset/strlen/memcpy，最后进入 while(1) idle 死循环，不再返回到 start.S 的 halt 标号。kernel/linker.ld 以虚线连接，说明它只定义 ENTRY(_start) 和 __bss_start/__bss_end 两个链接期符号，本身没有可执行代码。">
+
+          <defs>
+            <marker id="arrowMain" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--accent-main)"/>
+            </marker>
+            <marker id="arrowLinker" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--accent-linker)"/>
+            </marker>
+          </defs>
+
+          <!-- ============ legend ============ -->
+          <g>
+            <rect x="20" y="430" width="220" height="290" rx="4" class="box-linker" style="stroke-dasharray:none;" fill="var(--surface)" />
+            <text x="36" y="456" class="svg-h2">图例</text>
+
+            <text x="36" y="480" class="svg-tag">文件颜色</text>
+            <rect x="36" y="490" width="13" height="13" class="t-boot" fill="var(--accent-boot)"/>
+            <text x="56" y="500" class="svg-code">boot/start.S</text>
+            <rect x="36" y="516" width="13" height="13" fill="var(--accent-main)"/>
+            <text x="56" y="526" class="svg-code">kernel/main.c</text>
+            <rect x="36" y="542" width="13" height="13" fill="var(--accent-printk)"/>
+            <text x="56" y="552" class="svg-code">kernel/printk.c</text>
+            <rect x="36" y="568" width="13" height="13" fill="var(--accent-string)"/>
+            <text x="56" y="578" class="svg-code">lib/string.S</text>
+            <rect x="36" y="594" width="13" height="13" fill="var(--accent-linker)"/>
+            <text x="56" y="604" class="svg-code">linker.ld（只定符号）</text>
+
+            <text x="36" y="634" class="svg-tag">箭头含义</text>
+            <line x1="36" y1="656" x2="80" y2="656" class="arrow" marker-end="url(#arrowMain)"/>
+            <text x="90" y="660" class="svg-label">运行期调用 / 返回</text>
+            <text x="90" y="674" class="svg-label">(bl / jr $ra)</text>
+            <line x1="36" y1="694" x2="80" y2="694" class="arrow-dashed" marker-end="url(#arrowLinker)"/>
+            <text x="90" y="698" class="svg-label">链接期符号引用，</text>
+            <text x="90" y="712" class="svg-label">或本次课未执行路径</text>
+          </g>
+
+          <!-- ============ QEMU entry ============ -->
+          <rect x="340" y="20" width="300" height="42" rx="21" fill="var(--surface-2)" stroke="var(--ink-faint)"/>
+          <text x="490" y="46" text-anchor="middle" class="svg-code">QEMU －kernel build/minios.elf</text>
+          <line x1="490" y1="62" x2="490" y2="112" class="arrow" marker-end="url(#arrowMain)"/>
+          <text x="500" y="90" class="svg-label">加载 ELF → PC = ENTRY</text>
+
+          <!-- ============ linker.ld note ============ -->
+          <rect x="20" y="140" width="220" height="190" rx="4" class="box-linker"/>
+          <text x="36" y="165" class="svg-title t-linker">linker.ld</text>
+          <text x="36" y="180" class="svg-tag">kernel/linker.ld · 无代码</text>
+          <text x="36" y="204" class="svg-code">ENTRY(_start)</text>
+          <text x="36" y="222" class="svg-code" font-size="10">0x9000_0000_0020_0000</text>
+          <text x="36" y="252" class="svg-code">__bss_start</text>
+          <text x="36" y="270" class="svg-code">__bss_end</text>
+          <text x="36" y="288" class="svg-note">= .bss 段的实际起止地址</text>
+          <text x="36" y="302" class="svg-note">（由链接器摆放后算出）</text>
+
+          <line x1="240" y1="182" x2="270" y2="182" class="arrow-dashed" marker-end="url(#arrowLinker)"/>
+          <text x="244" y="176" class="svg-label" font-size="9">入口地址</text>
+
+          <path d="M240,300 L262,300 L262,320 L700,320" class="arrow-dashed" marker-end="url(#arrowLinker)"/>
+          <text x="330" y="333" class="svg-label" font-size="9">.bss 边界符号</text>
+
+          <!-- ============ _start ============ -->
+          <rect x="270" y="120" width="400" height="180" rx="4" class="box-boot"/>
+          <text x="286" y="148" class="svg-title t-boot">_start</text>
+          <text x="286" y="164" class="svg-tag">boot/start.S</text>
+          <text x="286" y="190" class="svg-code">la.global $sp, boot_stack_top</text>
+          <text x="286" y="212" class="svg-code">(a) bl   clear_bss</text>
+          <text x="286" y="234" class="svg-code">(c) bl   kernel_main</text>
+          <text x="286" y="260" class="svg-note">栈从高地址向低地址增长，</text>
+          <text x="286" y="274" class="svg-note">先设 $sp 才能安全调用子过程</text>
+
+          <!-- ============ clear_bss ============ -->
+          <rect x="700" y="150" width="260" height="190" rx="4" class="box-boot"/>
+          <text x="716" y="176" class="svg-title t-boot">clear_bss</text>
+          <text x="716" y="192" class="svg-tag">boot/start.S（同文件内调用）</text>
+          <text x="716" y="214" class="svg-code" font-size="10">la.global $t0,__bss_start</text>
+          <text x="716" y="230" class="svg-code" font-size="10">la.global $t1,__bss_end</text>
+          <text x="716" y="250" class="svg-code" font-size="10">1: beq $t0,$t1,2f</text>
+          <text x="716" y="266" class="svg-code" font-size="10">   st.b $zero,$t0,0</text>
+          <text x="716" y="282" class="svg-code" font-size="10">   addi.d $t0,$t0,1; b 1b</text>
+          <text x="716" y="302" class="svg-code" font-size="10">2: (b) jr $ra</text>
+
+          <line x1="670" y1="206" x2="700" y2="192" class="arrow" marker-end="url(#arrowMain)"/>
+          <text x="676" y="196" class="svg-label" font-size="9">(a)</text>
+          <line x1="700" y1="302" x2="670" y2="276" class="arrow" marker-end="url(#arrowMain)"/>
+          <text x="676" y="316" class="svg-label" font-size="9">(b) 返回 _start</text>
+
+          <line x1="470" y1="300" x2="470" y2="418" class="arrow" marker-end="url(#arrowMain)"/>
+          <text x="480" y="362" class="svg-label">(c) bl kernel_main</text>
+
+          <!-- ============ halt (dead in this lesson) ============ -->
+          <rect x="700" y="360" width="260" height="88" rx="4" class="box-dead"/>
+          <text x="716" y="384" class="svg-title" fill="var(--ink-faint)" font-size="14">halt:</text>
+          <text x="716" y="400" class="svg-tag">boot/start.S · 本次课不会执行</text>
+          <text x="716" y="420" class="svg-code" font-size="10">idle 0</text>
+          <text x="716" y="436" class="svg-code" font-size="10">b   halt</text>
+
+          <path d="M670,282 L830,282 L830,358" class="arrow-dashed" marker-end="url(#arrowLinker)"/>
+          <text x="836" y="330" class="svg-label" font-size="9">kernel_main</text>
+          <text x="836" y="343" class="svg-label" font-size="9">自己死循环，</text>
+          <text x="836" y="356" class="svg-label" font-size="9">从不返回到此</text>
+
+          <!-- ============ kernel_main ============ -->
+          <rect x="270" y="420" width="400" height="300" rx="4" class="box-main"/>
+          <text x="286" y="448" class="svg-title t-main">kernel_main</text>
+          <text x="286" y="464" class="svg-tag">kernel/main.c</text>
+          <text x="286" y="490" class="svg-code">① printk(msg)</text>
+          <text x="286" y="514" class="svg-code">② memset(buf, 0, 32)</text>
+          <text x="286" y="538" class="svg-code">③ strlen(...) 再 memcpy(...)</text>
+          <text x="286" y="562" class="svg-code">④ printk(buf); printk("\n")</text>
+          <text x="286" y="586" class="svg-code">⑤ if (bss_buffer[0] == 0)</text>
+          <text x="286" y="610" class="svg-code">⑥ printk("bss section cleared\n")</text>
+          <text x="286" y="634" class="svg-code">⑦ while (1) { idle 0; } ← 死循环</text>
+          <text x="286" y="660" class="svg-note">printk("week1-week2 check done\n") 在 ⑥ 之后、⑦ 之前</text>
+
+          <line x1="380" y1="720" x2="270" y2="768" class="arrow" marker-end="url(#arrowMain)"/>
+          <text x="200" y="748" class="svg-label">①④⑥ printk(...)</text>
+          <line x1="560" y1="720" x2="670" y2="768" class="arrow" marker-end="url(#arrowMain)"/>
+          <text x="600" y="748" class="svg-label">②③ memset/strlen/memcpy</text>
+
+          <!-- ============ printk.c ============ -->
+          <rect x="90" y="770" width="360" height="160" rx="4" class="box-printk"/>
+          <text x="106" y="798" class="svg-title t-printk">printk 调用链</text>
+          <text x="106" y="814" class="svg-tag">kernel/printk.c · 声明见 printk.h / uart.h</text>
+          <text x="106" y="838" class="svg-code">printk(s)</text>
+          <text x="106" y="858" class="svg-code">  └ uart_puts(s)</text>
+          <text x="106" y="878" class="svg-code">      └ uart_putc(c)</text>
+          <text x="106" y="900" class="svg-note">遇 '\n' 先补发一个 '\r'</text>
+
+          <!-- ============ string.S ============ -->
+          <rect x="540" y="770" width="360" height="160" rx="4" class="box-string"/>
+          <text x="556" y="798" class="svg-title t-string">string.S 三个函数</text>
+          <text x="556" y="814" class="svg-tag">lib/string.S · 声明见 include/string.h</text>
+          <text x="556" y="838" class="svg-code">memset(dst, val, n)</text>
+          <text x="556" y="858" class="svg-code">memcpy(dst, src, n)</text>
+          <text x="556" y="878" class="svg-code">strlen(s)</text>
+          <text x="556" y="900" class="svg-note">逐字节循环，参数走 $a0-$a2</text>
+
+          <text x="900" y="948" text-anchor="end" class="svg-label" font-size="9">↩ jr $ra 返回给 kernel_main</text>
+
+          <!-- ============ MMIO ============ -->
+          <line x1="270" y1="930" x2="270" y2="998" class="arrow" marker-end="url(#arrowMain)"/>
+          <text x="280" y="968" class="svg-label">uart_putc 写入</text>
+
+          <rect x="90" y="1000" width="360" height="108" rx="4" class="box-mmio"/>
+          <text x="106" y="1026" class="svg-title t-mmio">UART0_BASE（MMIO）</text>
+          <text x="106" y="1042" class="svg-tag">include/uart.h</text>
+          <text x="106" y="1064" class="svg-code" font-size="10.5">0x9000_0000_1fe0_01e0</text>
+          <text x="106" y="1086" class="svg-code" font-size="10">*uart = (unsigned char)ch;</text>
+
+        </svg>
+      </figure>
+      <figcaption>
+        从上到下即真实的执行顺序：QEMU 把 PC 设到 <code>linker.ld</code> 里 <code>ENTRY(_start)</code> 指定的地址开始执行；
+        <code>_start</code> 先设栈，再 <code>(a)</code> 调用同文件内的 <code>clear_bss</code> 把 <code>.bss</code> 清零并 <code>(b)</code> 返回，
+        接着 <code>(c)</code> 调用 <code>kernel/main.c</code> 的 <code>kernel_main</code>；
+        <code>kernel_main</code> 再分别调用 <code>kernel/printk.c</code>（输出到 UART）和 <code>lib/string.S</code>（内存与字符串操作），
+        最后进入自己的死循环，<code>start.S</code> 里的 <code>halt:</code> 因此永远不会被执行到。
+      </figcaption>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>声明 ↔ 实现对照</h2>
+    <p class="section-intro">对应 Task5：跨文件调用能连起来，靠的是"头文件声明 + .S/.c 里 <code>.globl</code> 导出 + Makefile 把两边都编进 SRCS"三件事同时成立。</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>头文件（声明）</th><th>实现文件</th><th>关键符号</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">include/string.h</td><td class="mono">lib/string.S</td><td class="mono">memset, memcpy, strlen</td></tr>
+          <tr><td class="mono">include/printk.h</td><td class="mono">kernel/printk.c</td><td class="mono">printk, printk_udec, printk_hex</td></tr>
+          <tr><td class="mono">include/uart.h</td><td class="mono">kernel/printk.c</td><td class="mono">uart_putc, uart_puts, UART0_BASE</td></tr>
+          <tr><td class="mono">（无头文件，脚本本身）</td><td class="mono">kernel/linker.ld</td><td class="mono">__bss_start, __bss_end, ENTRY(_start)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>三个常见误区</h2>
+    <div class="pitfalls">
+      <div class="pitfall">
+        <div class="n">1</div>
+        <div>
+          <h4><code>__bss_start</code> / <code>__bss_end</code> 不是函数</h4>
+          <p>它们是 <code>kernel/linker.ld</code> 里的位置标号，只表示地址，没有可执行的指令体。只能用 <code>la.global</code> 把地址取到寄存器里当数据用，不能像 <code>clear_bss</code> 一样 <code>bl</code> 过去。</p>
+        </div>
+      </div>
+      <div class="pitfall">
+        <div class="n">2</div>
+        <div>
+          <h4><code>halt:</code> 本次课不会被执行到</h4>
+          <p><code>kernel_main</code> 自己的最后一步就是 <code>while (1) { idle 0; }</code>，程序永远停在 C 函数里，不会"执行完"返回到 <code>_start</code> 里 <code>bl kernel_main</code> 之后的 <code>halt</code> 循环。</p>
+        </div>
+      </div>
+      <div class="pitfall">
+        <div class="n">3</div>
+        <div>
+          <h4>跨文件的调用是编译 + 链接一起完成的</h4>
+          <p><code>start.S</code> 里的 <code>bl</code> 之所以能跳到 <code>main.c</code>、<code>string.S</code> 里的符号，是因为对方用 <code>.globl</code>（C 里默认非 static）导出了这个名字，<b>并且</b> <code>Makefile</code> 的 <code>SRCS_S</code>/<code>SRCS_C</code> 把这个文件一起编译链接了进来。少列一个文件就会在链接期报 <code>undefined reference</code>。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    对应 miniOS tag <code class="mono">02-data-bss</code>（源码以 <code class="mono">boot/start.S</code> / <code class="mono">kernel/main.c</code> / <code class="mono">lib/string.S</code> / <code class="mono">kernel/printk.c</code> / <code class="mono">kernel/linker.ld</code> 该 tag 下的版本为准）· 配合 <code class="mono">docs/02/lab.md</code> Task3–Task5 使用
+  </footer>
+
+</div>
+</body>
+</html>

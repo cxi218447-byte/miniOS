@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 2 周：miniOS 构建流水线</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#F5F7FA;
+    --ink:#101826; --ink-soft:#48566B; --ink-faint:#8593A8; --line:#C7D0DC;
+    --accent-boot:#A85A26;   --accent-boot-bg:#FBEEE5;
+    --accent-main:#17324F;   --accent-main-bg:#EAF0F6;
+    --accent-printk:#146B63; --accent-printk-bg:#E4F3F1;
+    --accent-string:#6B4C93; --accent-string-bg:#F0EAF8;
+    --accent-linker:#67728A; --accent-linker-bg:#EDEFF3;
+    --elf:#8A3A3A; --elf-bg:#FBEBEA;
+    --term-bg:#0E1416; --term-frame:#050708; --term-fg:#9FE6B0; --term-fg-dim:#5C7A64;
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans',system-ui,sans-serif; margin:0;}
+  .page{max-width:1180px; margin:0 auto; padding:40px 20px 56px;}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+
+  header{margin-bottom:22px;}
+  .home-link{float:right; text-decoration:none; font-weight:700; color:var(--ink-soft); font-size:13px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft); letter-spacing:.06em; text-transform:uppercase;}
+  h1{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:clamp(1.7rem,3.6vw,2.2rem); margin:6px 0 4px; text-wrap:balance;}
+  .cap{color:var(--ink-faint); font-size:13.5px;}
+
+  .stage{position:relative; overflow:hidden; overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:8px;}
+  .stage svg{display:block; min-width:1040px; width:100%; height:auto;}
+
+  svg text{font-family:'IBM Plex Mono',ui-monospace,monospace; fill:var(--ink);}
+  .lbl{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:15px; fill:var(--ink);}
+  .sub{font-size:9px; fill:var(--ink-faint);}
+  .tree-branch{fill:var(--ink-faint); font-size:13px;}
+  .tree-name{fill:var(--ink-soft); font-size:13px;}
+  .tree-file{fill:var(--ink); font-size:13px; font-weight:500;}
+
+  footer{margin-top:34px; padding-top:14px; border-top:1px solid var(--line); font-size:12px; color:var(--ink-faint);}
+
+  /* ---------- gate glows ---------- */
+  .gate-glow{opacity:0; fill-opacity:.35;}
+  .compile-glow{fill:var(--ink); animation:kfCompileGlow 8s linear infinite;}
+  .link-glow{fill:var(--ink); animation:kfLinkGlow 8s linear infinite;}
+  @keyframes kfCompileGlow{
+    0%,24%{opacity:0;} 28%,44%{opacity:1;} 48%,100%{opacity:0;}
+  }
+  @keyframes kfLinkGlow{
+    0%,54%{opacity:0;} 58%,70%{opacity:1;} 74%,100%{opacity:0;}
+  }
+
+  /* ---------- particles ---------- */
+  .particle{ transform:translate(0px,0px); }
+  .particle circle{ stroke:var(--surface); stroke-width:1.5; }
+  .particle text{ fill:#fff; font-size:11px; font-weight:600; text-anchor:middle; dominant-baseline:central; }
+
+  .p-boot   { fill:var(--accent-boot);   animation:kfBoot   8s linear infinite; }
+  .p-main   { fill:var(--accent-main);   animation:kfMain   8s linear infinite; }
+  .p-printk { fill:var(--accent-printk); animation:kfPrintk 8s linear infinite; }
+  .p-linker { fill:var(--accent-linker); animation:kfLinker 8s linear infinite; }
+  .p-string { fill:var(--accent-string); animation:kfString 8s linear infinite; }
+
+  @keyframes kfBoot{
+    0%   { transform:translate(210px,102px); opacity:1; }
+    26%  { transform:translate(420px,102px); opacity:1; }
+    40%,46%{ transform:translate(582px,102px); opacity:1; }
+    58%  { transform:translate(700px,102px); opacity:1; }
+    70%  { transform:translate(930px,185px); opacity:1; }
+    71%,100%{ transform:translate(930px,185px); opacity:0; }
+  }
+  @keyframes kfMain{
+    0%   { transform:translate(210px,150px); opacity:1; }
+    26%  { transform:translate(420px,150px); opacity:1; }
+    40%,46%{ transform:translate(582px,150px); opacity:1; }
+    58%  { transform:translate(700px,150px); opacity:1; }
+    70%  { transform:translate(930px,185px); opacity:1; }
+    71%,100%{ transform:translate(930px,185px); opacity:0; }
+  }
+  @keyframes kfPrintk{
+    0%   { transform:translate(210px,174px); opacity:1; }
+    26%  { transform:translate(420px,174px); opacity:1; }
+    40%,46%{ transform:translate(582px,174px); opacity:1; }
+    58%  { transform:translate(700px,174px); opacity:1; }
+    70%  { transform:translate(930px,185px); opacity:1; }
+    71%,100%{ transform:translate(930px,185px); opacity:0; }
+  }
+  @keyframes kfString{
+    0%   { transform:translate(210px,246px); opacity:1; }
+    26%  { transform:translate(420px,246px); opacity:1; }
+    40%,46%{ transform:translate(582px,246px); opacity:1; }
+    58%  { transform:translate(700px,246px); opacity:1; }
+    70%  { transform:translate(930px,185px); opacity:1; }
+    71%,100%{ transform:translate(930px,185px); opacity:0; }
+  }
+  @keyframes kfLinker{
+    0%   { transform:translate(210px,198px); opacity:1; }
+    20%  { transform:translate(360px,198px); opacity:1; }
+    32%  { transform:translate(430px,48px);  opacity:1; }
+    48%  { transform:translate(620px,48px);  opacity:1; }
+    58%  { transform:translate(700px,198px); opacity:1; }
+    70%  { transform:translate(930px,185px); opacity:1; }
+    71%,100%{ transform:translate(930px,185px); opacity:0; }
+  }
+
+  /* ---------- elf pulse ---------- */
+  .elf-group{ transform-origin:930px 185px; animation:kfElf 8s linear infinite; }
+  @keyframes kfElf{
+    0%,66%{ transform:scale(1); }
+    70%{ transform:scale(1.07); }
+    76%,100%{ transform:scale(1); }
+  }
+  .elf-ring{ opacity:0; animation:kfElfRing 8s linear infinite; }
+  @keyframes kfElfRing{
+    0%,67%{ opacity:0; r:6px; }
+    70%{ opacity:.7; r:70px; }
+    78%,100%{ opacity:0; r:70px; }
+  }
+
+  /* ---------- arrow + terminal reveal ---------- */
+  .arrow2{ opacity:0; animation:kfArrow2 8s linear infinite; }
+  @keyframes kfArrow2{ 0%,71%{opacity:0;} 74%,100%{opacity:1;} }
+
+  /* ---------- terminal: real Task2 commands, then real program output ---------- */
+  .term-line{ opacity:0; transform:translateY(4px); }
+  .cmd{ fill:var(--term-fg); }
+  .out{ fill:var(--term-fg-dim); }
+  .cmd-clean{ animation:kfCmdClean 8s linear infinite; }
+  .cmd-make { animation:kfCmdMake  8s linear infinite; }
+  .cmd-run  { animation:kfCmdRun   8s linear infinite; }
+  .l1{ animation:kfL1 8s linear infinite; }
+  .l2{ animation:kfL2 8s linear infinite; }
+  .l3{ animation:kfL3 8s linear infinite; }
+  .l4{ animation:kfL4 8s linear infinite; }
+  @keyframes kfCmdClean{ 0%,2%{opacity:0; transform:translateY(4px);} 5%,97%{opacity:1; transform:translateY(0);} 99%,100%{opacity:0;} }
+  @keyframes kfCmdMake { 0%,7%{opacity:0; transform:translateY(4px);} 10%,97%{opacity:1; transform:translateY(0);} 99%,100%{opacity:0;} }
+  @keyframes kfCmdRun  { 0%,71%{opacity:0; transform:translateY(4px);} 73%,97%{opacity:1; transform:translateY(0);} 99%,100%{opacity:0;} }
+  @keyframes kfL1{ 0%,77%{opacity:0; transform:translateY(4px);} 79%,97%{opacity:1; transform:translateY(0);} 99%,100%{opacity:0;} }
+  @keyframes kfL2{ 0%,81%{opacity:0; transform:translateY(4px);} 83%,97%{opacity:1; transform:translateY(0);} 99%,100%{opacity:0;} }
+  @keyframes kfL3{ 0%,85%{opacity:0; transform:translateY(4px);} 87%,97%{opacity:1; transform:translateY(0);} 99%,100%{opacity:0;} }
+  @keyframes kfL4{ 0%,89%{opacity:0; transform:translateY(4px);} 91%,97%{opacity:1; transform:translateY(0);} 99%,100%{opacity:0;} }
+
+  @media (prefers-reduced-motion: reduce){
+    .compile-glow,.link-glow,.p-boot,.p-main,.p-printk,.p-linker,.p-string,
+    .elf-group,.elf-ring,.arrow2,.cmd-clean,.cmd-make,.cmd-run,.l1,.l2,.l3,.l4{
+      animation-iteration-count:1 !important;
+      animation-duration:0.01s !important;
+      animation-fill-mode:forwards !important;
+      animation-delay:0s !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header>
+    <a class="home-link" href="../">返回第 2 周</a>
+    <div class="eyebrow">第 2 次课 · tag 02-data-bss</div>
+    <h1>文件在哪、怎么串成一个程序</h1>
+    <p class="cap">循环播放 · 编译 → 链接 → 运行</p>
+  </header>
+
+  <div class="stage">
+    <svg viewBox="0 0 1330 380" role="img" aria-label="动画：miniOS 源码文件从各自的目录（boot/start.S、kernel/main.c、kernel/printk.c、lib/string.S、kernel/linker.ld）出发，经过编译阶段变成 .o 文件，再经过链接阶段（linker.ld 不参与编译、直接绕过编译阶段进入链接）合并成 minios.elf；终端依次敲入第2次课的真实命令 make clean、make、make run，最后打印出四行程序输出。">
+
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--ink-faint)"/>
+        </marker>
+      </defs>
+
+      <!-- ================= file tree ================= -->
+      <g class="mono">
+        <text x="24" y="58" class="tree-name">miniOS/</text>
+        <text x="24" y="82" class="tree-branch">├─ boot/</text>
+        <text x="24" y="106" class="tree-branch">│  └─ <tspan class="tree-file">start.S</tspan></text>
+        <text x="24" y="130" class="tree-branch">├─ kernel/</text>
+        <text x="24" y="154" class="tree-branch">│  ├─ <tspan class="tree-file">main.c</tspan></text>
+        <text x="24" y="178" class="tree-branch">│  ├─ <tspan class="tree-file">printk.c</tspan></text>
+        <text x="24" y="202" class="tree-branch">│  └─ <tspan class="tree-file">linker.ld</tspan></text>
+        <text x="24" y="226" class="tree-branch">├─ lib/</text>
+        <text x="24" y="250" class="tree-branch">│  └─ <tspan class="tree-file">string.S</tspan></text>
+        <text x="24" y="274" class="tree-branch">└─ include/</text>
+        <text x="24" y="298" class="tree-branch">   └─ <tspan class="tree-file">*.h</tspan></text>
+      </g>
+      <circle cx="210" cy="102" r="4" fill="var(--accent-boot)"/>
+      <circle cx="210" cy="150" r="4" fill="var(--accent-main)"/>
+      <circle cx="210" cy="174" r="4" fill="var(--accent-printk)"/>
+      <circle cx="210" cy="198" r="4" fill="var(--accent-linker)"/>
+      <circle cx="210" cy="246" r="4" fill="var(--accent-string)"/>
+
+      <!-- include/*.h feeds the compiler, produces no .o of its own -->
+      <path d="M110,298 C260,298 260,264 420,264" fill="none" stroke="var(--ink-faint)" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#arrow)"/>
+      <text x="230" y="316" class="sub">-I include（只提供声明，不单独编译）</text>
+
+      <!-- ================= compile gate ================= -->
+      <rect x="420" y="85" width="110" height="180" rx="6" fill="var(--surface-2)" stroke="var(--ink-faint)"/>
+      <rect class="gate-glow compile-glow" x="420" y="85" width="110" height="180" rx="6"/>
+      <text x="475" y="72" text-anchor="middle" class="lbl">编译</text>
+      <text x="475" y="278" text-anchor="middle" class="sub">gcc -c　(.S/.c → .o)</text>
+
+      <!-- .o landing pads -->
+      <rect x="560" y="87" width="44" height="30" rx="4" fill="var(--accent-boot-bg)" stroke="var(--accent-boot)"/>
+      <rect x="560" y="135" width="44" height="30" rx="4" fill="var(--accent-main-bg)" stroke="var(--accent-main)"/>
+      <rect x="560" y="159" width="44" height="30" rx="4" fill="var(--accent-printk-bg)" stroke="var(--accent-printk)"/>
+      <rect x="560" y="231" width="44" height="30" rx="4" fill="var(--accent-string-bg)" stroke="var(--accent-string)"/>
+      <text x="582" y="107" text-anchor="middle" class="sub">.o</text>
+      <text x="582" y="155" text-anchor="middle" class="sub">.o</text>
+      <text x="582" y="179" text-anchor="middle" class="sub">.o</text>
+      <text x="582" y="251" text-anchor="middle" class="sub">.o</text>
+
+      <!-- ================= link gate (funnel) ================= -->
+      <path d="M700,85 L700,265 L850,205 L850,165 Z" fill="var(--surface-2)" stroke="var(--ink-faint)"/>
+      <path class="gate-glow link-glow" d="M700,85 L700,265 L850,205 L850,165 Z"/>
+      <text x="730" y="72" class="lbl">链接</text>
+      <text x="730" y="290" class="sub">ld -T kernel/linker.ld</text>
+
+      <!-- ================= elf output ================= -->
+      <g class="elf-group">
+        <circle class="elf-ring" cx="930" cy="185" r="6" fill="none" stroke="var(--elf)" stroke-width="2"/>
+        <rect x="850" y="150" width="160" height="70" rx="6" fill="var(--elf-bg)" stroke="var(--elf)"/>
+        <text x="930" y="190" text-anchor="middle" class="mono" font-size="13" font-weight="600" fill="var(--elf)">minios.elf</text>
+      </g>
+      <text x="930" y="236" text-anchor="middle" class="sub">objcopy → minios.bin</text>
+
+      <!-- arrow to terminal -->
+      <line class="arrow2" x1="1015" y1="185" x2="1036" y2="185" stroke="var(--ink-faint)" stroke-width="1.6" marker-end="url(#arrow)"/>
+      <text class="arrow2" x="1025" y="170" text-anchor="middle" class="sub">QEMU</text>
+
+      <!-- ================= terminal ================= -->
+      <rect x="1040" y="40" width="260" height="300" rx="8" fill="var(--term-frame)"/>
+      <rect x="1044" y="44" width="252" height="18" rx="3" fill="#1B2224"/>
+      <circle cx="1054" cy="53" r="3" fill="#E0605A"/>
+      <circle cx="1064" cy="53" r="3" fill="#E0B75A"/>
+      <circle cx="1074" cy="53" r="3" fill="#5FBF6E"/>
+      <text x="1170" y="56" text-anchor="middle" font-size="8" fill="#7C8A8E" class="mono">qemu -nographic</text>
+      <rect x="1044" y="66" width="252" height="270" fill="var(--term-bg)"/>
+
+      <g class="mono" font-size="11">
+        <text class="term-line cmd cmd-clean" x="1054" y="92"  fill="var(--term-fg)">$ make clean</text>
+        <text class="term-line cmd cmd-make"  x="1054" y="114" fill="var(--term-fg)">$ make</text>
+        <text class="term-line cmd cmd-run"   x="1054" y="146" fill="var(--term-fg)">$ make run</text>
+        <text class="term-line out l1" x="1054" y="172" fill="var(--term-fg)">Hello miniOS on LoongArch64</text>
+        <text class="term-line out l2" x="1054" y="194" fill="var(--term-fg)">data section ok</text>
+        <text class="term-line out l3" x="1054" y="216" fill="var(--term-fg)">bss section cleared</text>
+        <text class="term-line out l4" x="1054" y="238" fill="var(--term-fg)">week1-week2 check done</text>
+      </g>
+
+      <!-- ================= particles ================= -->
+      <g class="particle p-boot"><circle r="10"/><text>B</text></g>
+      <g class="particle p-main"><circle r="10"/><text>M</text></g>
+      <g class="particle p-printk"><circle r="10"/><text>P</text></g>
+      <g class="particle p-linker"><circle r="10"/><text>L</text></g>
+      <g class="particle p-string"><circle r="10"/><text>S</text></g>
+
+    </svg>
+  </div>
+
+  <footer>
+    B=boot/start.S　M=kernel/main.c　P=kernel/printk.c　L=kernel/linker.ld（不编译，只在链接期提供入口地址与 __bss_start/__bss_end）　S=lib/string.S　·　对应 tag <span class="mono">02-data-bss</span>
+  </footer>
+
+</div>
+</body>
+</html>

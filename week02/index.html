@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 2 周动画 - LoongArch miniOS</title>
+  <link rel="stylesheet" href="../assets/shared.css">
+</head>
+<body>
+  <main class="site-shell">
+    <nav class="topbar" aria-label="站点导航">
+      <p class="brand">第 2 次课：.data/.bss 与 C/汇编混合启动</p>
+      <a class="home-link" href="../">返回首页</a>
+    </nav>
+
+    <section class="hero">
+      <p class="eyebrow">第 2 次课 · tag 02-data-bss</p>
+      <h1>课堂演示动画</h1>
+      <p class="lead">这些动画用来回答同学们最常问的一句话——“文件之间的调用关系连不起来”：一张图看运行期真实发生的调用链，一段动画看源码文件怎样被编译、链接成一个程序。</p>
+    </section>
+
+    <section class="grid" aria-label="第 2 次课动画列表">
+      <a class="card" href="boot-call-chain/">
+        <small>Call Graph</small>
+        <strong>启动调用链</strong>
+        <span>从 QEMU 加载 ELF、跳到 _start，到 kernel_main 调用 printk / memset / memcpy / strlen 的完整运行期调用图。</span>
+      </a>
+
+      <a class="card" href="build-pipeline/">
+        <small>Build Pipeline</small>
+        <strong>构建流水线动画</strong>
+        <span>源码文件在哪个目录、怎样经 make clean / make / make run 被编译、链接成 minios.elf 并跑出实验预期输出。</span>
+      </a>
+    </section>
+
+    <p class="note">建议课堂投屏使用桌面浏览器打开；学生课后可直接用手机或电脑浏览器访问。</p>
+  </main>
+</body>
+</html>
