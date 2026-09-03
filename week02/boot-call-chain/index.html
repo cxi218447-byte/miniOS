@@ -93,6 +93,70 @@
   .pitfall code{background:var(--surface-2); padding:1px 5px; border-radius:2px; font-size:12.5px; color:var(--ink);}
 
   footer{margin-top:52px; padding-top:18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--ink-faint);}
+  .footer-links{margin-top:10px;}
+  .footer-links a{color:var(--accent-main); font-weight:600; text-decoration:none;}
+  .footer-links a:hover{text-decoration:underline;}
+
+  /* ---------- play control ---------- */
+  .play-toggle{display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--accent-main); border:1px solid var(--accent-main); border-radius:999px; padding:5px 14px; user-select:none; margin:2px 0 16px;}
+  .play-toggle input{position:absolute; opacity:0; width:1px; height:1px;}
+  .play-icon::before{content:"▶ 播放调用顺序";}
+  .play-toggle input:checked ~ .play-icon::before{content:"⏸ 暂停动画";}
+  .play-toggle input:focus-visible ~ .play-icon{outline:2px solid var(--accent-main); outline-offset:2px;}
+
+  /* ---------- animated runner: paused until #playToggle is checked ---------- */
+  .runner{animation-play-state:paused; animation-timing-function:linear; animation-iteration-count:infinite;}
+  .runner circle{stroke:var(--surface); stroke-width:1.5;}
+  .glow-live{animation-play-state:paused; animation-timing-function:linear; animation-iteration-count:infinite; fill-opacity:.28; pointer-events:none;}
+  .section:has(#playToggle:checked) .runner,
+  .section:has(#playToggle:checked) .glow-live{ animation-play-state:running; }
+
+  .runner-pc     { animation-name:kfRunnerPC;     animation-duration:11s; }
+  .runner-printk { animation-name:kfRunnerPrintk; animation-duration:11s; }
+  .runner-string { animation-name:kfRunnerString; animation-duration:11s; }
+
+  @keyframes kfRunnerPC{
+    0%   { transform:translate(430px,41px);  opacity:1; fill:var(--ink-faint); }
+    6%   { transform:translate(430px,150px); opacity:1; fill:var(--accent-boot); }
+    18%  { transform:translate(830px,230px); opacity:1; fill:var(--accent-boot); }
+    30%  { transform:translate(470px,270px); opacity:1; fill:var(--accent-boot); }
+    42%  { transform:translate(470px,430px); opacity:1; fill:var(--accent-main); }
+    58%  { transform:translate(470px,650px); opacity:1; fill:var(--accent-main); }
+    60%,100%{ transform:translate(470px,650px); opacity:0; fill:var(--accent-main); }
+  }
+  @keyframes kfRunnerPrintk{
+    0%,60%{ transform:translate(470px,650px); opacity:0; fill:var(--accent-printk); }
+    66%  { transform:translate(270px,800px); opacity:1; fill:var(--accent-printk); }
+    76%  { transform:translate(270px,1054px); opacity:1; fill:var(--mmio); }
+    88%,100%{ transform:translate(270px,1054px); opacity:0; fill:var(--mmio); }
+  }
+  @keyframes kfRunnerString{
+    0%,60%{ transform:translate(470px,650px); opacity:0; fill:var(--accent-string); }
+    66%  { transform:translate(720px,800px); opacity:1; fill:var(--accent-string); }
+    80%  { transform:translate(720px,800px); opacity:1; fill:var(--accent-string); }
+    88%  { transform:translate(470px,650px); opacity:1; fill:var(--accent-string); }
+    94%,100%{ transform:translate(470px,650px); opacity:0; fill:var(--accent-string); }
+  }
+
+  /* ---------- box glow while the runner visits ---------- */
+  .glow-start   { animation-name:kfGlowStart;    animation-duration:11s; fill:var(--accent-boot); }
+  .glow-clearbss{ animation-name:kfGlowClearbss; animation-duration:11s; fill:var(--accent-boot); }
+  .glow-kmain   { animation-name:kfGlowKmain;    animation-duration:11s; fill:var(--accent-main); }
+  .glow-printk  { animation-name:kfGlowPrintk;   animation-duration:11s; fill:var(--accent-printk); }
+  .glow-string  { animation-name:kfGlowString;   animation-duration:11s; fill:var(--accent-string); }
+  .glow-mmio    { animation-name:kfGlowMmio;     animation-duration:11s; fill:var(--mmio); }
+
+  @keyframes kfGlowStart{    0%,4%{opacity:0;} 8%,32%{opacity:1;} 36%,100%{opacity:0;} }
+  @keyframes kfGlowClearbss{ 0%,16%{opacity:0;} 20%,30%{opacity:1;} 34%,100%{opacity:0;} }
+  @keyframes kfGlowKmain{    0%,40%{opacity:0;} 44%,58%{opacity:1;} 62%,100%{opacity:0;} }
+  @keyframes kfGlowPrintk{   0%,63%{opacity:0;} 67%,75%{opacity:1;} 79%,100%{opacity:0;} }
+  @keyframes kfGlowString{   0%,63%{opacity:0;} 67%,87%{opacity:1;} 91%,100%{opacity:0;} }
+  @keyframes kfGlowMmio{     0%,73%{opacity:0;} 77%,86%{opacity:1;} 90%,100%{opacity:0;} }
+
+  @media (prefers-reduced-motion: reduce){
+    .runner, .glow-live{ animation:none !important; opacity:0 !important; }
+    .play-toggle{ display:none; }
+  }
 </style>
 </head>
 <body>
@@ -143,9 +207,14 @@
     <h2>运行期调用图</h2>
     <p class="section-intro">按源文件着色；实线箭头 = 真实发生的 <code>bl</code> 调用 / <code>jr $ra</code> 返回，虚线箭头 = 链接期符号引用或本次课不会被执行的路径。</p>
 
+    <label class="play-toggle">
+      <input type="checkbox" id="playToggle">
+      <span class="play-icon"></span>
+    </label>
+
     <div class="diagram-scroll">
       <figure>
-        <svg viewBox="0 0 980 1150" role="img" aria-label="miniOS 第2次课启动调用图：QEMU 加载 ELF 后 PC 跳到 boot/start.S 的 _start，_start 设栈后调用 clear_bss 清零 .bss 并返回，再调用 kernel/main.c 的 kernel_main；kernel_main 依次调用 printk（经 kernel/printk.c 的 uart_puts/uart_putc 写入 UART0_BASE MMIO）和 lib/string.S 的 memset/strlen/memcpy，最后进入 while(1) idle 死循环，不再返回到 start.S 的 halt 标号。kernel/linker.ld 以虚线连接，说明它只定义 ENTRY(_start) 和 __bss_start/__bss_end 两个链接期符号，本身没有可执行代码。">
+        <svg viewBox="0 0 980 1150" role="img" aria-label="miniOS 第2次课启动调用图：QEMU 加载 ELF 后 PC 跳到 boot/start.S 的 _start，_start 设栈后调用 clear_bss 清零 .bss 并返回，再调用 kernel/main.c 的 kernel_main；kernel_main 依次调用 printk（经 kernel/printk.c 的 uart_puts/uart_putc 写入 UART0_BASE MMIO）和 lib/string.S 的 memset/strlen/memcpy，最后进入 while(1) idle 死循环，不再返回到 start.S 的 halt 标号。kernel/linker.ld 以虚线连接，说明它只定义 ENTRY(_start) 和 __bss_start/__bss_end 两个链接期符号，本身没有可执行代码。点击图上方的"播放调用顺序"按钮可以看一个圆点按真实顺序跑一遍这条路径。">
 
           <defs>
             <marker id="arrowMain" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
@@ -207,6 +276,7 @@
 
           <!-- ============ _start ============ -->
           <rect x="270" y="120" width="400" height="180" rx="4" class="box-boot"/>
+          <rect class="glow-live glow-start" x="270" y="120" width="400" height="180" rx="4"/>
           <text x="286" y="148" class="svg-title t-boot">_start</text>
           <text x="286" y="164" class="svg-tag">boot/start.S</text>
           <text x="286" y="190" class="svg-code">la.global $sp, boot_stack_top</text>
@@ -217,6 +287,7 @@
 
           <!-- ============ clear_bss ============ -->
           <rect x="700" y="150" width="260" height="190" rx="4" class="box-boot"/>
+          <rect class="glow-live glow-clearbss" x="700" y="150" width="260" height="190" rx="4"/>
           <text x="716" y="176" class="svg-title t-boot">clear_bss</text>
           <text x="716" y="192" class="svg-tag">boot/start.S（同文件内调用）</text>
           <text x="716" y="214" class="svg-code" font-size="10">la.global $t0,__bss_start</text>
@@ -248,6 +319,7 @@
 
           <!-- ============ kernel_main ============ -->
           <rect x="270" y="420" width="400" height="300" rx="4" class="box-main"/>
+          <rect class="glow-live glow-kmain" x="270" y="420" width="400" height="300" rx="4"/>
           <text x="286" y="448" class="svg-title t-main">kernel_main</text>
           <text x="286" y="464" class="svg-tag">kernel/main.c</text>
           <text x="286" y="490" class="svg-code">① printk(msg)</text>
@@ -266,6 +338,7 @@
 
           <!-- ============ printk.c ============ -->
           <rect x="90" y="770" width="360" height="160" rx="4" class="box-printk"/>
+          <rect class="glow-live glow-printk" x="90" y="770" width="360" height="160" rx="4"/>
           <text x="106" y="798" class="svg-title t-printk">printk 调用链</text>
           <text x="106" y="814" class="svg-tag">kernel/printk.c · 声明见 printk.h / uart.h</text>
           <text x="106" y="838" class="svg-code">printk(s)</text>
@@ -275,6 +348,7 @@
 
           <!-- ============ string.S ============ -->
           <rect x="540" y="770" width="360" height="160" rx="4" class="box-string"/>
+          <rect class="glow-live glow-string" x="540" y="770" width="360" height="160" rx="4"/>
           <text x="556" y="798" class="svg-title t-string">string.S 三个函数</text>
           <text x="556" y="814" class="svg-tag">lib/string.S · 声明见 include/string.h</text>
           <text x="556" y="838" class="svg-code">memset(dst, val, n)</text>
@@ -289,10 +363,16 @@
           <text x="280" y="968" class="svg-label">uart_putc 写入</text>
 
           <rect x="90" y="1000" width="360" height="108" rx="4" class="box-mmio"/>
+          <rect class="glow-live glow-mmio" x="90" y="1000" width="360" height="108" rx="4"/>
           <text x="106" y="1026" class="svg-title t-mmio">UART0_BASE（MMIO）</text>
           <text x="106" y="1042" class="svg-tag">include/uart.h</text>
           <text x="106" y="1064" class="svg-code" font-size="10.5">0x9000_0000_1fe0_01e0</text>
           <text x="106" y="1086" class="svg-code" font-size="10">*uart = (unsigned char)ch;</text>
+
+          <!-- ============ animated runner: shows the same call order in motion ============ -->
+          <g class="runner runner-pc"><circle r="8"/></g>
+          <g class="runner runner-printk"><circle r="8"/></g>
+          <g class="runner runner-string"><circle r="8"/></g>
 
         </svg>
       </figure>
@@ -353,6 +433,7 @@
 
   <footer>
     对应 miniOS tag <code class="mono">02-data-bss</code>（源码以 <code class="mono">boot/start.S</code> / <code class="mono">kernel/main.c</code> / <code class="mono">lib/string.S</code> / <code class="mono">kernel/printk.c</code> / <code class="mono">kernel/linker.ld</code> 该 tag 下的版本为准）· 配合 <code class="mono">docs/02/lab.md</code> Task3–Task5 使用
+    <p class="footer-links">← 先看这些文件是怎么被 <a href="../build-pipeline/">编译、链接成一个程序</a> 的（构建流水线动画）</p>
   </footer>
 
 </div>
