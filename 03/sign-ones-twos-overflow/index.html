@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 3 次课：原码 / 反码 / 补码 与溢出 动画演示</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08111f;
+      --panel: #111e31;
+      --panel-2: #172943;
+      --text: #f4f7fb;
+      --muted: #b9c8dc;
+      --blue: #61b7ff;
+      --green: #63e6a5;
+      --yellow: #ffd166;
+      --red: #ff7b89;
+      --purple: #c9a6ff;
+      --border: #36506e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #17304e 0, var(--bg) 50%);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+      font-size: 32px;      /* >= 24pt 基线字号 */
+      line-height: 1.5;
+    }
+    button, select, input { font: inherit; }
+    .page { max-width: 1600px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0; font-size: clamp(38px, 4vw, 58px); }
+    h2 { margin: 0; font-size: 36px; }
+    h3 { margin: 0 0 10px; font-size: 32px; }
+    .subtitle { margin: 8px 0 22px; color: var(--muted); font-size: 32px; }
+    .toolbar, .controls, .stepnav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      margin: 16px 0;
+    }
+    label { color: var(--muted); font-size: 32px; }
+    button, select, input[type=number] {
+      min-height: 60px;
+      padding: 8px 20px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel-2);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 32px;
+    }
+    input[type=number] { width: 200px; cursor: text; }
+    button:hover, button:focus-visible, select:focus-visible, input:focus-visible {
+      border-color: var(--blue);
+      outline: 3px solid rgb(97 183 255 / 30%);
+    }
+    button.active { background: #155a8b; border-color: var(--blue); }
+    button:disabled { opacity: .42; cursor: not-allowed; }
+    .mode-btn { font-size: 34px; padding: 14px 26px; }
+    .panel {
+      background: rgb(17 30 49 / 94%);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 18px 60px rgb(0 0 0 / 25%);
+    }
+    [hidden] { display: none !important; }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(360px, .9fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .stage-panel, .explain, .verdict, .summary {
+      border: 2px solid var(--border);
+      border-radius: 13px;
+      padding: 18px;
+      background: #0d192a;
+    }
+    .explain { color: var(--muted); min-height: 220px; }
+    .explain b { color: var(--text); }
+    .explain .warn { color: var(--yellow); }
+    .steplabel { color: var(--yellow); font-weight: bold; }
+
+    .bitrow-wrap { margin: 14px 0; }
+    .bitrow-title { color: var(--blue); margin-bottom: 8px; font-size: 32px; }
+    .bitgrid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(50px, 1fr));
+      gap: 8px 8px;
+      row-gap: 46px;
+      padding-top: 40px;
+    }
+    .bit {
+      position: relative;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel-2);
+      text-align: center;
+      padding: 10px 0 6px;
+      font-size: 32px;
+      font-weight: bold;
+      transition: background .35s, border-color .35s, transform .35s;
+    }
+    .bit .weight {
+      display: block;
+      font-size: 32px;
+      font-weight: normal;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .bit.sign { border-color: var(--purple); }
+    .bit.sign::before {
+      content: "符号";
+      position: absolute;
+      top: -36px; left: 0; right: 0;
+      font-size: 32px;
+      color: var(--purple);
+    }
+    .bit.pending { opacity: .28; }
+    .bit.active { background: #155a8b; border-color: var(--blue); transform: scale(1.08); }
+    .bit.flipped { background: #7a4b17; border-color: var(--yellow); }
+    .bit.carry { border-color: var(--red); }
+    .bit.done { background: #123a29; border-color: var(--green); }
+    .carry-mark {
+      position: absolute; top: -36px; left: 0; right: 0;
+      font-size: 32px; color: var(--red); text-align: center;
+    }
+
+    .resultstrip { display: flex; gap: 16px; flex-wrap: wrap; margin: 10px 0; }
+    .resultbox {
+      border: 2px solid var(--border); border-radius: 10px; padding: 10px 16px;
+      background: var(--panel-2); min-width: 260px;
+    }
+    .resultbox.filled { border-color: var(--green); }
+    .resultbox .label { color: var(--muted); font-size: 32px; }
+    .resultbox .value { font-size: 32px; letter-spacing: 2px; }
+
+    .legend-note { color: var(--muted); font-size: 32px; margin-top: 8px; }
+    footer.takeaways {
+      margin-top: 26px; padding: 20px; border-radius: 14px;
+      background: #0d192a; border: 2px solid var(--border); color: var(--muted);
+      font-size: 32px; line-height: 1.7;
+    }
+    footer.takeaways b { color: var(--yellow); }
+    .verdict.overflow { border-color: var(--red); }
+    .verdict.overflow .flag { color: var(--red); }
+    .verdict .flag { color: var(--green); font-size: 36px; font-weight: bold; }
+    .err { color: var(--red); font-size: 32px; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <p style="margin:0 0 8px;"><a href="../" style="color:var(--blue);font-weight:700;text-decoration:none;font-size:28px;">‹ 返回第 3 次课</a></p>
+  <header>
+    <h1>原码 / 反码 / 补码 与溢出</h1>
+    <div class="subtitle">第 3 次课 · 数据表示动画演示 &nbsp;|&nbsp; 配合讲义 §5.3.0(5) / §5.7 / §5.7.5</div>
+  </header>
+
+  <div class="toolbar panel">
+    <label>位宽：</label>
+    <button id="bit8" class="active">8 位</button>
+    <button id="bit32">32 位</button>
+    <div style="width:2px;height:36px;background:var(--border);"></div>
+    <button id="mode-convert" class="mode-btn active">① 原码 → 反码 → 补码</button>
+    <button id="mode-overflow" class="mode-btn">② 加法溢出判断</button>
+  </div>
+
+  <!-- ============ 模式一：原码/反码/补码 转换 ============ -->
+  <section id="convert-mode">
+    <div class="controls panel">
+      <label>十进制数：</label>
+      <input type="number" id="dec-input" value="-5">
+      <button id="conv-build">生成 / 重新开始</button>
+      <span id="conv-range-hint" class="legend-note"></span>
+    </div>
+
+    <div class="resultstrip">
+      <div class="resultbox" id="box-yuanma"><div class="label">原码</div><div class="value">--</div></div>
+      <div class="resultbox" id="box-fanma"><div class="label">反码</div><div class="value">--</div></div>
+      <div class="resultbox" id="box-buma"><div class="label">补码</div><div class="value">--</div></div>
+    </div>
+
+    <div class="workspace">
+      <div class="stage-panel">
+        <div class="bitrow-wrap">
+          <div class="bitrow-title" id="conv-grid-title">位模式</div>
+          <div class="bitgrid" id="conv-grid"></div>
+        </div>
+        <div class="stepnav">
+          <button id="conv-prev">◀ 上一步</button>
+          <span class="steplabel" id="conv-steplabel">步骤 1 / 7</span>
+          <button id="conv-next">下一步 ▶</button>
+          <button id="conv-auto">▶ 自动播放</button>
+          <button id="conv-replay">↻ 重播当前动画</button>
+        </div>
+      </div>
+      <aside class="explain" id="conv-explain"></aside>
+    </div>
+  </section>
+
+  <!-- ============ 模式二：加法溢出判断 ============ -->
+  <section id="overflow-mode" hidden>
+    <div class="controls panel">
+      <label>操作数 A：</label><input type="number" id="ov-a" value="127">
+      <label>操作数 B：</label><input type="number" id="ov-b" value="127">
+      <button id="ov-preset">调入教材例（最大正数 + 自身）</button>
+      <button id="ov-build">开始 / 重新开始</button>
+      <span id="ov-range-hint" class="legend-note"></span>
+    </div>
+
+    <div class="workspace">
+      <div class="stage-panel">
+        <div class="bitrow-wrap">
+          <div class="bitrow-title">A 的补码</div>
+          <div class="bitgrid" id="ov-grid-a"></div>
+        </div>
+        <div class="bitrow-wrap">
+          <div class="bitrow-title">B 的补码</div>
+          <div class="bitgrid" id="ov-grid-b"></div>
+        </div>
+        <div class="bitrow-wrap">
+          <div class="bitrow-title">按位相加结果（含进位）</div>
+          <div class="bitgrid" id="ov-grid-sum"></div>
+        </div>
+        <div class="stepnav">
+          <button id="ov-prev">◀ 上一步</button>
+          <span class="steplabel" id="ov-steplabel">步骤 1 / 3</span>
+          <button id="ov-next">下一步 ▶</button>
+          <button id="ov-auto">▶ 自动播放</button>
+          <button id="ov-replay">↻ 重播当前动画</button>
+        </div>
+      </div>
+      <aside class="explain" id="ov-explain"></aside>
+    </div>
+
+    <div class="verdict" id="ov-verdict"></div>
+  </section>
+
+  <footer class="takeaways">
+    <b>板书要点：</b><br>
+    原码：符号位 + 数值位的自然二进制，正负仅差符号位。<br>
+    反码：正数反码 = 原码；负数反码 = 符号位不变，数值位逐位取反。<br>
+    补码：正数补码 = 原码；负数补码 = 反码 + 1（末位加 1，向左进位）。<br>
+    溢出判断：<b>两个加数同号，结果异号 → 溢出</b>（等价于：符号位的进位 ≠ 最高位向外的进位）。<br>
+    教材例：<code>0x7fffffff + 0x7fffffff → 0xfffffffe（−2）</code>；本页 8 位对照例 <code>0x7f + 0x7f → 0xfe（−2）</code>，结果恰好一致，便于对照记忆。
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- 基础位运算工具 ----------
+  function flipBit(c) { return c === '0' ? '1' : '0'; }
+
+  function yuanmaBits(value, bits) {
+    const sign = value < 0 ? '1' : '0';
+    const mag = Math.abs(value).toString(2).padStart(bits - 1, '0');
+    return sign + mag;
+  }
+  function fanmaBits(value, bits) {
+    const y = yuanmaBits(value, bits);
+    if (value >= 0) return y;
+    return '1' + [...y.slice(1)].map(flipBit).join('');
+  }
+  // 逐位二进制加法，返回从最低位到最高位的动画步骤
+  function addBinaryDetailed(aBits, bBits) {
+    const n = aBits.length;
+    const steps = [];
+    let carry = 0;
+    const sumArr = new Array(n).fill('0');
+    for (let i = n - 1; i >= 0; i--) {
+      const a = +aBits[i], b = +bBits[i];
+      const total = a + b + carry;
+      const bit = total % 2;
+      const cout = total >= 2 ? 1 : 0;
+      steps.push({ index: i, a, b, cin: carry, bit, cout });
+      sumArr[i] = String(bit);
+      carry = cout;
+    }
+    return { sumBits: sumArr.join(''), steps, finalCarry: carry };
+  }
+  function bumaFromFanma(value, bits) {
+    const f = fanmaBits(value, bits);
+    if (value >= 0) return { bumaBits: f, addResult: null };
+    const one = '0'.repeat(bits - 1) + '1';
+    const res = addBinaryDetailed(f, one);
+    return { bumaBits: res.sumBits, addResult: res };
+  }
+  function twosComplementDirect(value, bits) { // 支持全量程（含 -2^(n-1)）
+    const mod = Math.pow(2, bits);
+    const u = ((value % mod) + mod) % mod;
+    return u.toString(2).padStart(bits, '0');
+  }
+  function decodeTwos(bitsStr) {
+    const bits = bitsStr.length;
+    const u = parseInt(bitsStr, 2);
+    const max = Math.pow(2, bits);
+    return bitsStr[0] === '1' ? u - max : u;
+  }
+  function signMagMax(bits) { return Math.pow(2, bits - 1) - 1; }
+  function twosMin(bits) { return -Math.pow(2, bits - 1); }
+  function twosMax(bits) { return Math.pow(2, bits - 1) - 1; }
+  function hex(bitsStr) { return '0x' + parseInt(bitsStr, 2).toString(16).padStart(Math.ceil(bitsStr.length / 4), '0'); }
+
+  // ---------- 全局状态 ----------
+  const state = { bits: 8 };
+
+  function renderBitGrid(container, bitsStr, opts) {
+    opts = opts || {};
+    container.innerHTML = '';
+    for (let i = 0; i < bitsStr.length; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'bit';
+      if (i === 0) cell.classList.add('sign');
+      const weight = bitsStr.length - 1 - i;
+      cell.innerHTML = (opts.hideValue ? '&nbsp;' : bitsStr[i]) +
+        (opts.showWeight ? '<span class="weight">2^' + weight + '</span>' : '');
+      cell.dataset.index = i;
+      container.appendChild(cell);
+    }
+  }
+
+  function delay(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+  // ==================================================================
+  // 模式一：原码 → 反码 → 补码
+  // ==================================================================
+  const convGrid = document.getElementById('conv-grid');
+  const convGridTitle = document.getElementById('conv-grid-title');
+  const convExplain = document.getElementById('conv-explain');
+  const convStepLabel = document.getElementById('conv-steplabel');
+  const decInput = document.getElementById('dec-input');
+  const convRangeHint = document.getElementById('conv-range-hint');
+  const boxYuanma = document.getElementById('box-yuanma');
+  const boxFanma = document.getElementById('box-fanma');
+  const boxBuma = document.getElementById('box-buma');
+
+  let conv = null;     // 当前转换的数据
+  let convStep = 0;    // 当前步骤索引
+  let convAutoTimer = null;
+
+  const CONV_STEPS = ['input', 'sign', 'yuanma', 'fanma-rule', 'fanma', 'buma-add', 'buma'];
+
+  function buildConversion() {
+    const bits = state.bits;
+    const v = parseInt(decInput.value, 10);
+    const maxAbs = signMagMax(bits);
+    if (Number.isNaN(v) || v < -maxAbs || v > maxAbs) {
+      convRangeHint.innerHTML = '<span class="err">原码/反码在 ' + bits + ' 位下只能表示 −' + maxAbs + ' ~ +' + maxAbs + '，请重新输入</span>';
+      conv = null;
+      renderBitGrid(convGrid, '?'.repeat(bits).replace(/\?/g, '0'), { hideValue: true });
+      resetResultBoxes();
+      return;
+    }
+    convRangeHint.textContent = '可表示范围：−' + maxAbs + ' ~ +' + maxAbs;
+    const yuanma = yuanmaBits(v, bits);
+    const fanma = fanmaBits(v, bits);
+    const buma = bumaFromFanma(v, bits);
+    conv = { value: v, bits, yuanma, fanma, buma: buma.bumaBits, addResult: buma.addResult };
+    convStep = 0;
+    resetResultBoxes();
+    renderConvStep();
+  }
+
+  function resetResultBoxes() {
+    [boxYuanma, boxFanma, boxBuma].forEach((b) => {
+      b.classList.remove('filled');
+      b.querySelector('.value').textContent = '--';
+    });
+  }
+
+  function fillResultBox(box, bitsStr) {
+    box.classList.add('filled');
+    box.querySelector('.value').textContent = bitsStr + '  (' + hex(bitsStr) + ')';
+  }
+
+  async function renderConvStep() {
+    if (!conv) return;
+    const key = CONV_STEPS[convStep];
+    convStepLabel.textContent = '步骤 ' + (convStep + 1) + ' / ' + CONV_STEPS.length;
+    const bits = conv.bits;
+    const negative = conv.value < 0;
+
+    document.getElementById('conv-prev').disabled = convStep === 0;
+    document.getElementById('conv-next').disabled = convStep === CONV_STEPS.length - 1;
+
+    if (key === 'input') {
+      convGridTitle.textContent = '待转换：十进制 ' + conv.value + '（' + bits + ' 位）';
+      renderBitGrid(convGrid, '0'.repeat(bits), { hideValue: true });
+      convExplain.innerHTML = '<b>第 1 步：读入</b><br>十进制数：<b>' + conv.value + '</b><br>位宽：<b>' + bits + ' 位</b><br>绝对值：<b>' + Math.abs(conv.value) + '</b><br><br>接下来先求<b>原码</b>：符号位 + 数值位的自然二进制。';
+      return;
+    }
+
+    if (key === 'sign') {
+      convGridTitle.textContent = '原码 · 符号位';
+      renderBitGrid(convGrid, conv.yuanma, { hideValue: true });
+      const cells = convGrid.children;
+      cells[0].textContent = conv.yuanma[0];
+      cells[0].classList.add('active');
+      convExplain.innerHTML = '<b>第 2 步：确定符号位</b><br>正数记 <b>0</b>，负数记 <b>1</b>。<br>' + conv.value + ' 是' + (negative ? '负数' : '正数') + '，符号位 = <b>' + conv.yuanma[0] + '</b>';
+      return;
+    }
+
+    if (key === 'yuanma') {
+      convGridTitle.textContent = '完整原码';
+      renderBitGrid(convGrid, conv.yuanma, { hideValue: false });
+      [...convGrid.children].forEach((c) => c.classList.add('done'));
+      fillResultBox(boxYuanma, conv.yuanma);
+      convExplain.innerHTML = '<b>第 3 步：写出数值位</b><br>|' + conv.value + '| = ' + Math.abs(conv.value) + ' 的自然二进制填入其余位。<br><br><b>原码 = ' + conv.yuanma + '</b>（' + hex(conv.yuanma) + '）';
+      return;
+    }
+
+    if (key === 'fanma-rule') {
+      convGridTitle.textContent = '反码变换规则';
+      renderBitGrid(convGrid, conv.yuanma, { hideValue: false });
+      const cells = [...convGrid.children];
+      cells[0].classList.add('done');
+      if (negative) {
+        cells.slice(1).forEach((c) => c.classList.add('pending'));
+        convExplain.innerHTML = '<b>第 4 步：反码规则</b><br>负数：<b>符号位不变，数值位逐位取反</b>（0↔1）。<br>正数：反码 = 原码，不变。<br><br>' + conv.value + ' 是' + (negative ? '负数，下一步逐位取反' : '正数，无需变换');
+      } else {
+        cells.slice(1).forEach((c) => c.classList.add('done'));
+        convExplain.innerHTML = '<b>第 4 步：反码规则</b><br>' + conv.value + ' 是正数：<b>反码 = 原码</b>，直接进入下一步。';
+      }
+      return;
+    }
+
+    if (key === 'fanma') {
+      convGridTitle.textContent = '完整反码';
+      renderBitGrid(convGrid, conv.yuanma, { hideValue: false });
+      const cells = [...convGrid.children];
+      cells[0].classList.add('done');
+      fillResultBox(boxFanma, conv.fanma);
+      if (negative) {
+        // 逐位取反动画
+        cells.slice(1).forEach((c) => c.classList.add('pending'));
+        convExplain.innerHTML = '<b>第 5 步：逐位取反中…</b>';
+        for (let i = 1; i < cells.length; i++) {
+          await delay(160);
+          cells[i].classList.remove('pending');
+          cells[i].textContent = conv.fanma[i];
+          cells[i].classList.add('flipped');
+        }
+        await delay(150);
+        cells.forEach((c) => { c.classList.remove('flipped'); c.classList.add('done'); });
+        convExplain.innerHTML = '<b>第 5 步：完整反码</b><br>符号位不变，数值位逐位取反。<br><br><b>反码 = ' + conv.fanma + '</b>（' + hex(conv.fanma) + '）';
+      } else {
+        cells.slice(1).forEach((c) => { c.textContent = conv.fanma[[...cells].indexOf(c)]; c.classList.add('done'); });
+        convExplain.innerHTML = '<b>第 5 步：完整反码</b><br>正数反码 = 原码。<br><br><b>反码 = ' + conv.fanma + '</b>（' + hex(conv.fanma) + '）';
+      }
+      return;
+    }
+
+    if (key === 'buma-add') {
+      convGridTitle.textContent = '反码 + 1（进位动画）';
+      if (!negative) {
+        renderBitGrid(convGrid, conv.fanma, { hideValue: false });
+        [...convGrid.children].forEach((c) => c.classList.add('done'));
+        convExplain.innerHTML = '<b>第 6 步：补码规则</b><br>' + conv.value + ' 是正数：<b>补码 = 反码 = 原码</b>，无需加 1。';
+        return;
+      }
+      renderBitGrid(convGrid, conv.fanma, { hideValue: false });
+      const cells = [...convGrid.children];
+      cells.forEach((c) => c.classList.add('done'));
+      convExplain.innerHTML = '<b>第 6 步：末位 + 1，向左进位</b><br>规则：负数补码 = 反码 + 1。<br>动画进行中…';
+      const steps = conv.addResult.steps; // 已按最低位→最高位顺序
+      for (const s of steps) {
+        await delay(200);
+        const cell = cells[s.index];
+        cell.classList.add('active');
+        cell.textContent = s.bit;
+        if (s.cout) {
+          const mark = document.createElement('div');
+          mark.className = 'carry-mark';
+          mark.textContent = '进位→';
+          cell.appendChild(mark);
+          cell.classList.add('carry');
+        }
+        await delay(160);
+        cell.classList.remove('active');
+      }
+      convExplain.innerHTML = '<b>第 6 步：末位 + 1，向左进位完成</b><br>反码 ' + conv.fanma + ' + 1 = 补码 ' + conv.buma + '（进位从右向左传播，直到遇到 0 为止）';
+      return;
+    }
+
+    if (key === 'buma') {
+      convGridTitle.textContent = '完整补码';
+      renderBitGrid(convGrid, conv.buma, { hideValue: false });
+      [...convGrid.children].forEach((c) => c.classList.add('done'));
+      fillResultBox(boxBuma, conv.buma);
+      convExplain.innerHTML = '<b>第 7 步：小结</b><br>' +
+        '原码 = ' + conv.yuanma + '<br>' +
+        '反码 = ' + conv.fanma + '<br>' +
+        '补码 = ' + conv.buma + '<br><br>' +
+        '十进制 ' + conv.value + ' 用补码存放，与 LoongArch 寄存器中<b>有符号数一律用补码</b>的口径一致（讲义 §5.7）。';
+      return;
+    }
+  }
+
+  document.getElementById('conv-build').addEventListener('click', buildConversion);
+  document.getElementById('conv-next').addEventListener('click', () => {
+    if (!conv) return;
+    if (convStep < CONV_STEPS.length - 1) { convStep++; renderConvStep(); }
+  });
+  document.getElementById('conv-prev').addEventListener('click', () => {
+    if (!conv) return;
+    if (convStep > 0) { convStep--; renderConvStep(); }
+  });
+  document.getElementById('conv-replay').addEventListener('click', () => { if (conv) renderConvStep(); });
+  document.getElementById('conv-auto').addEventListener('click', function () {
+    if (!conv) return;
+    if (convAutoTimer) {
+      clearInterval(convAutoTimer);
+      convAutoTimer = null;
+      this.textContent = '▶ 自动播放';
+      return;
+    }
+    this.textContent = '⏸ 暂停';
+    convAutoTimer = setInterval(() => {
+      if (convStep < CONV_STEPS.length - 1) {
+        convStep++; renderConvStep();
+      } else {
+        clearInterval(convAutoTimer); convAutoTimer = null;
+        document.getElementById('conv-auto').textContent = '▶ 自动播放';
+      }
+    }, 1500);
+  });
+
+  // ==================================================================
+  // 模式二：加法溢出判断
+  // ==================================================================
+  const ovA = document.getElementById('ov-a');
+  const ovB = document.getElementById('ov-b');
+  const ovRangeHint = document.getElementById('ov-range-hint');
+  const ovGridA = document.getElementById('ov-grid-a');
+  const ovGridB = document.getElementById('ov-grid-b');
+  const ovGridSum = document.getElementById('ov-grid-sum');
+  const ovExplain = document.getElementById('ov-explain');
+  const ovStepLabel = document.getElementById('ov-steplabel');
+  const ovVerdict = document.getElementById('ov-verdict');
+
+  let ov = null;
+  let ovStep = 0;
+  let ovAutoTimer = null;
+  const OV_STEPS = ['operands', 'add', 'verdict'];
+
+  function buildOverflow() {
+    const bits = state.bits;
+    const a = parseInt(ovA.value, 10);
+    const b = parseInt(ovB.value, 10);
+    const lo = twosMin(bits), hi = twosMax(bits);
+    if (Number.isNaN(a) || Number.isNaN(b) || a < lo || a > hi || b < lo || b > hi) {
+      ovRangeHint.innerHTML = '<span class="err">' + bits + ' 位补码可表示 ' + lo + ' ~ ' + hi + '，请重新输入</span>';
+      ov = null;
+      return;
+    }
+    ovRangeHint.textContent = '可表示范围：' + lo + ' ~ ' + hi;
+    const aBits = twosComplementDirect(a, bits);
+    const bBits = twosComplementDirect(b, bits);
+    const res = addBinaryDetailed(aBits, bBits);
+    const cinSign = res.steps[res.steps.length - 1].cin;  // 进入符号位的进位
+    const coutSign = res.finalCarry;                       // 符号位向外的进位
+    const sameSign = aBits[0] === bBits[0];
+    const resultDiffSign = res.sumBits[0] !== aBits[0];
+    const overflow = sameSign && resultDiffSign;
+    ov = { a, b, bits, aBits, bBits, res, cinSign, coutSign, overflow };
+    ovStep = 0;
+    ovVerdict.className = 'verdict panel';
+    ovVerdict.innerHTML = '';
+    renderOvStep();
+  }
+
+  async function renderOvStep() {
+    if (!ov) return;
+    const key = OV_STEPS[ovStep];
+    ovStepLabel.textContent = '步骤 ' + (ovStep + 1) + ' / ' + OV_STEPS.length;
+    document.getElementById('ov-prev').disabled = ovStep === 0;
+    document.getElementById('ov-next').disabled = ovStep === OV_STEPS.length - 1;
+
+    renderBitGrid(ovGridA, ov.aBits, { hideValue: false });
+    renderBitGrid(ovGridB, ov.bBits, { hideValue: false });
+
+    if (key === 'operands') {
+      renderBitGrid(ovGridSum, '0'.repeat(ov.bits), { hideValue: true });
+      ovExplain.innerHTML = '<b>第 1 步：两个补码操作数</b><br>' +
+        'A = ' + ov.a + ' → ' + ov.aBits + '（' + hex(ov.aBits) + '）<br>' +
+        'B = ' + ov.b + ' → ' + ov.bBits + '（' + hex(ov.bBits) + '）';
+      return;
+    }
+
+    if (key === 'add') {
+      renderBitGrid(ovGridSum, '0'.repeat(ov.bits), { hideValue: true });
+      const sumCells = [...ovGridSum.children];
+      ovExplain.innerHTML = '<b>第 2 步：按位相加，逐位进位</b><br>从最低位（右）开始，动画进行中…';
+      for (const s of ov.res.steps) {
+        await delay(180);
+        const cell = sumCells[s.index];
+        cell.textContent = s.bit;
+        cell.classList.add('active');
+        if (s.cout) {
+          const mark = document.createElement('div');
+          mark.className = 'carry-mark';
+          mark.textContent = '进位→';
+          cell.appendChild(mark);
+          cell.classList.add('carry');
+        }
+        await delay(140);
+        cell.classList.remove('active');
+        cell.classList.add('done');
+      }
+      ovExplain.innerHTML = '<b>第 2 步：相加完成</b><br>和（补码位模式）= ' + ov.res.sumBits + '（' + hex(ov.res.sumBits) + '）';
+      return;
+    }
+
+    if (key === 'verdict') {
+      renderBitGrid(ovGridSum, ov.res.sumBits, { hideValue: false });
+      [...ovGridSum.children].forEach((c) => c.classList.add('done'));
+      const dec = decodeTwos(ov.res.sumBits);
+      ovExplain.innerHTML = '<b>第 3 步：判断是否溢出</b><br>' +
+        'A、B 符号位：' + ov.aBits[0] + ' / ' + ov.bBits[0] + '（' + (ov.aBits[0] === ov.bBits[0] ? '相同' : '不同') + '）<br>' +
+        '结果符号位：' + ov.res.sumBits[0] + '<br>' +
+        '符号位进位：进入 = ' + ov.cinSign + '，输出 = ' + ov.coutSign + '（' + (ov.cinSign === ov.coutSign ? '相同' : '不同') + '）';
+      ovVerdict.classList.toggle('overflow', ov.overflow);
+      ovVerdict.innerHTML =
+        '<div class="flag">' + (ov.overflow ? '⚠ 溢出！' : '✓ 未溢出') + '</div>' +
+        '<div>规则一：两加数同号 且 结果异号 → ' + (ov.overflow ? '满足，溢出' : '不满足') + '</div>' +
+        '<div>规则二：符号位进入进位 ≠ 输出进位 → ' + (ov.cinSign !== ov.coutSign ? '满足，溢出' : '不满足') + '</div>' +
+        '<div style="margin-top:10px;">结果按补码解码为十进制：<b>' + dec + '</b>' +
+        (ov.overflow ? '（真值 ' + ov.a + ' + ' + ov.b + ' = ' + (ov.a + ov.b) + '，硬件受位宽限制得到 ' + dec + '）' : '') + '</div>';
+      return;
+    }
+  }
+
+  document.getElementById('ov-build').addEventListener('click', buildOverflow);
+  document.getElementById('ov-preset').addEventListener('click', () => {
+    const m = twosMax(state.bits);
+    ovA.value = m; ovB.value = m;
+    buildOverflow();
+  });
+  document.getElementById('ov-next').addEventListener('click', () => {
+    if (!ov) return;
+    if (ovStep < OV_STEPS.length - 1) { ovStep++; renderOvStep(); }
+  });
+  document.getElementById('ov-prev').addEventListener('click', () => {
+    if (!ov) return;
+    if (ovStep > 0) { ovStep--; renderOvStep(); }
+  });
+  document.getElementById('ov-replay').addEventListener('click', () => { if (ov) renderOvStep(); });
+  document.getElementById('ov-auto').addEventListener('click', function () {
+    if (!ov) return;
+    if (ovAutoTimer) {
+      clearInterval(ovAutoTimer); ovAutoTimer = null;
+      this.textContent = '▶ 自动播放';
+      return;
+    }
+    this.textContent = '⏸ 暂停';
+    ovAutoTimer = setInterval(() => {
+      if (ovStep < OV_STEPS.length - 1) {
+        ovStep++; renderOvStep();
+      } else {
+        clearInterval(ovAutoTimer); ovAutoTimer = null;
+        document.getElementById('ov-auto').textContent = '▶ 自动播放';
+      }
+    }, 1700);
+  });
+
+  // ==================================================================
+  // 顶部工具栏：位宽切换 / 模式切换
+  // ==================================================================
+  document.getElementById('bit8').addEventListener('click', function () {
+    state.bits = 8;
+    this.classList.add('active');
+    document.getElementById('bit32').classList.remove('active');
+    buildConversion(); buildOverflow();
+  });
+  document.getElementById('bit32').addEventListener('click', function () {
+    state.bits = 32;
+    this.classList.add('active');
+    document.getElementById('bit8').classList.remove('active');
+    // 32 位下原码/反码上限很大，给一个更贴近教材的默认值
+    if (Math.abs(parseInt(decInput.value, 10)) > signMagMax(32)) decInput.value = -5;
+    buildConversion(); buildOverflow();
+  });
+
+  const convertSection = document.getElementById('convert-mode');
+  const overflowSection = document.getElementById('overflow-mode');
+  document.getElementById('mode-convert').addEventListener('click', function () {
+    this.classList.add('active');
+    document.getElementById('mode-overflow').classList.remove('active');
+    convertSection.hidden = false; overflowSection.hidden = true;
+  });
+  document.getElementById('mode-overflow').addEventListener('click', function () {
+    this.classList.add('active');
+    document.getElementById('mode-convert').classList.remove('active');
+    convertSection.hidden = true; overflowSection.hidden = false;
+  });
+
+  // ---------- 初始化 ----------
+  buildConversion();
+  buildOverflow();
+})();
+</script>
+</body>
+</html>

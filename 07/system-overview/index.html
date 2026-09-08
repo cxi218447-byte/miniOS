@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 7 次课：memset / memcpy / strlen 系统总览</title>
+<style>
+  :root{
+    --navy:#1E2761;
+    --navy-deep:#141b4d;
+    --ice:#CADCFC;
+    --ice-soft:#E7EFFD;
+    --paper:#F6F8FE;
+    --ink:#1A2036;
+    --muted:#5A6280;
+    --line:#B9C6EE;
+    --white:#ffffff;
+    --good:#2A7E4E;
+    --warn:#B85F22;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",system-ui,sans-serif;
+    font-size:17px;
+    line-height:1.6;
+  }
+  h1,h2,h3{
+    font-family:Georgia,"Noto Serif SC","Songti SC",serif;
+    color:var(--navy);
+    margin:0 0 .3em;
+    font-weight:700;
+  }
+  .page{max-width:1320px;margin:0 auto;padding:28px 24px 60px;}
+  header.hero{
+    background:linear-gradient(135deg,var(--navy) 0%,var(--navy-deep) 100%);
+    color:var(--ice-soft);
+    border-radius:20px;
+    padding:30px 34px;
+    margin-bottom:26px;
+    box-shadow:0 18px 40px rgba(30,39,97,.25);
+  }
+  header.hero h1{color:#fff;font-size:clamp(24px,3vw,34px);}
+  header.hero .tag{
+    display:inline-block;
+    background:rgba(202,220,252,.16);
+    border:1px solid rgba(202,220,252,.45);
+    color:var(--ice);
+    border-radius:999px;
+    padding:3px 14px;
+    font-size:14px;
+    letter-spacing:.04em;
+    margin-bottom:10px;
+  }
+  header.hero p{margin:10px 0 0;color:var(--ice-soft);max-width:900px;font-size:16px;}
+
+  section.panel{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:22px 24px;
+    margin-bottom:22px;
+    box-shadow:0 10px 26px rgba(30,39,97,.06);
+  }
+  section.panel > h2{font-size:21px;border-left:6px solid var(--navy);padding-left:12px;}
+
+  /* ---------- 控制条 ---------- */
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 4px;}
+  button{
+    font:inherit;
+    cursor:pointer;
+    border:2px solid var(--navy);
+    background:var(--white);
+    color:var(--navy);
+    border-radius:10px;
+    padding:9px 18px;
+    font-weight:700;
+    transition:.15s;
+  }
+  button:hover{background:var(--ice-soft);}
+  button.primary{background:var(--navy);color:#fff;}
+  button.primary:hover{background:var(--navy-deep);}
+  button:disabled{opacity:.45;cursor:not-allowed;}
+  .step-badge{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--ice-soft);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:8px 16px;
+    font-weight:700;
+    color:var(--navy);
+    min-width:260px;
+  }
+  .step-badge .n{
+    background:var(--navy);color:#fff;
+    width:26px;height:26px;border-radius:50%;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:14px;
+  }
+  #stepCaption{margin-top:10px;color:var(--muted);font-size:15px;min-height:1.4em;}
+
+  /* ---------- 图谱区 ---------- */
+  .diagram-wrap{position:relative;padding:10px 6px 26px;}
+  svg.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;}
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    grid-template-rows:auto auto auto auto;
+    gap:26px 40px;
+    position:relative;
+    z-index:1;
+  }
+  .n-makefile{grid-column:1/3;grid-row:1;justify-self:center;width:100%;max-width:520px;}
+  .n-start   {grid-column:1/3;grid-row:2;justify-self:center;width:100%;max-width:520px;}
+  .n-main    {grid-column:1/3;grid-row:3;justify-self:center;width:100%;max-width:520px;}
+  .n-strings {grid-column:1/3;grid-row:4;justify-self:center;width:100%;max-width:520px;}
+  .n-stringh {grid-column:3/4;grid-row:3;align-self:center;}
+
+  @media (max-width:880px){
+    .grid{grid-template-columns:1fr;}
+    .n-makefile,.n-start,.n-main,.n-strings,.n-stringh{grid-column:1/2;max-width:none;}
+    .n-makefile{grid-row:1;}
+    .n-start{grid-row:2;}
+    .n-main{grid-row:3;}
+    .n-stringh{grid-row:4;}
+    .n-strings{grid-row:5;}
+  }
+
+  .node{
+    border:2px solid var(--navy);
+    border-radius:16px;
+    background:var(--white);
+    overflow:hidden;
+    transition:box-shadow .25s,border-color .25s,transform .25s;
+  }
+  .node.hl{
+    border-color:var(--warn);
+    box-shadow:0 0 0 5px rgba(184,95,34,.18),0 14px 30px rgba(30,39,97,.18);
+    transform:translateY(-2px);
+  }
+  .node-head{
+    display:flex;align-items:center;gap:12px;
+    padding:14px 16px;
+    cursor:pointer;
+    background:linear-gradient(135deg,var(--navy),var(--navy-deep));
+    color:#fff;
+    user-select:none;
+  }
+  .node-head .path{
+    font-family:"Consolas","Cascadia Mono",monospace;
+    font-weight:700;
+    font-size:16px;
+    flex:1;
+  }
+  .node-head .role{
+    font-size:13px;color:var(--ice);
+    background:rgba(255,255,255,.12);
+    border-radius:999px;padding:3px 10px;
+  }
+  .node-head .chevron{
+    font-size:14px;transition:transform .2s;color:var(--ice);
+  }
+  .node.expanded .node-head .chevron{transform:rotate(90deg);}
+  .node-body{
+    padding:14px 18px 18px;
+    background:var(--ice-soft);
+  }
+  .node-body p{margin:0 0 10px;color:var(--muted);font-size:15px;}
+  .node-body p.strong-note{color:var(--navy);font-weight:700;}
+  .omitted{
+    color:var(--warn);
+    font-size:13px;
+    font-style:italic;
+    margin:6px 0 0;
+  }
+  pre.code{
+    margin:0;
+    background:var(--navy);
+    color:var(--ice);
+    border-radius:12px;
+    padding:14px 16px;
+    overflow-x:auto;
+    font-family:"Consolas","Cascadia Mono",monospace;
+    font-size:14px;
+    line-height:1.55;
+  }
+  pre.code .cmt{color:#8fa4e0;}
+  [hidden]{display:none!important;}
+
+  .n-stringh .node-head .path{font-size:15px;}
+
+  /* ---------- 边说明 ---------- */
+  .legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:6px;font-size:14px;color:var(--muted);}
+  .legend .item{display:flex;align-items:center;gap:8px;}
+  .legend .swatch{width:34px;height:0;border-top:3px solid var(--navy);}
+  .legend .swatch.dashed{border-top-style:dashed;}
+  .legend .swatch.call{border-top-color:var(--warn);}
+  .legend .swatch.ret{border-top-color:var(--good);}
+
+  table.reltable{width:100%;border-collapse:collapse;margin-top:8px;font-size:14.5px;}
+  table.reltable th,table.reltable td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+  table.reltable th{background:var(--navy);color:#fff;}
+  table.reltable tr:nth-child(even) td{background:var(--ice-soft);}
+
+  footer{color:var(--muted);font-size:13.5px;text-align:center;margin-top:18px;}
+  footer code{background:var(--ice-soft);padding:2px 6px;border-radius:6px;}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <p style="margin:0 0 16px;"><a href="../" style="color:#1E2761;font-weight:700;text-decoration:none;">‹ 返回第 7 次课</a></p>
+
+  <header class="hero">
+    <span class="tag">第 7 次课 · 技术编号 07 · 检查点 07-libc-asm</span>
+    <h1>memset / memcpy / strlen 汇编实现：系统总览</h1>
+    <p>
+      从 <code>make</code> 构建，到 <code>_start</code> 启动，到 <code>kernel_main</code> 调用库函数，
+      再到 <code>lib/string.S</code> 里真正跑的那几行汇编——本页把这条链路上会用到的
+      5 个真实文件摆在一起，点击可展开真实源码，也可以按真实执行顺序播放一遍。
+      <code>lib/string.S</code> 现在有六个函数：基础的 <code>memset</code>/<code>memcpy</code>/
+      <code>strlen</code>，以及更复杂的 <code>memmove</code>/<code>strcmp</code>/
+      <code>zero_and_copy</code>（唯一的非叶子函数）。
+    </p>
+  </header>
+
+  <section class="panel">
+    <h2>播放调用流程</h2>
+    <div class="controls">
+      <button class="primary" id="playBtn">▶ 播放调用流程</button>
+      <button id="prevBtn">‹ 上一步</button>
+      <button id="nextBtn">下一步 ›</button>
+      <button id="resetBtn">重置</button>
+      <span class="step-badge"><span class="n" id="stepN">–</span><span id="stepLabel">未开始</span></span>
+    </div>
+    <div id="stepCaption">点击“播放调用流程”，按 构建 → 启动 → 内核入口 → 声明 → 实现 → 返回 六步高亮下方节点与连线。</div>
+  </section>
+
+  <section class="panel">
+    <h2>文件关系图（点击文件名可展开 / 收起真实源码）</h2>
+    <div class="diagram-wrap" id="diagramWrap">
+      <svg class="edges" id="edgesSvg">
+        <defs>
+          <marker id="arrowNavy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#1E2761"></path>
+          </marker>
+          <marker id="arrowWarn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#B85F22"></path>
+          </marker>
+          <marker id="arrowGood" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#2A7E4E"></path>
+          </marker>
+        </defs>
+      </svg>
+
+      <div class="grid" id="grid">
+
+        <div class="node n-makefile" id="node-makefile" data-role="build">
+          <div class="node-head" data-target="body-makefile">
+            <span class="path">Makefile</span>
+            <span class="role">① 构建</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="node-body" id="body-makefile" hidden>
+            <p>定义交叉编译工具链、源文件列表与链接规则。<code>SRCS_S</code> 里包含
+              <code>boot/start.S</code>、<code>lib/string.S</code>；<code>SRCS_C</code> 里包含
+              <code>kernel/main.c</code>。<code>make</code> 把它们分别编译成 .o，
+              再按 <code>kernel/linker.ld</code> 链接成 <code>build/minios.elf</code>，
+              QEMU <code>-kernel</code> 加载后从 <code>_start</code> 开始执行——这就是下面
+              “①构建→②启动”这条箭头的真实含义。</p>
+            <pre class="code">CROSS_COMPILE ?= loongarch64-linux-gnu-
+CC      := $(CROSS_COMPILE)gcc
+...
+CFLAGS  := -Wall -Wextra -O2 -g -ffreestanding -fno-builtin -fno-stack-protector
+CFLAGS  += -nostdlib -mabi=lp64d -march=loongarch64
+...
+LDFLAGS := -T kernel/linker.ld -nostdlib -static
+
+<span class="cmt"># 第 1–11 次课源文件（后续课次在对应 tag 中再追加，勿提前混入）</span>
+SRCS_C := \
+	kernel/main.c \
+	kernel/printk.c \
+	kernel/syscall.c \
+	kernel/exception.c \
+	kernel/irq.c
+
+SRCS_S := \
+	boot/start.S \
+	lib/string.S \
+	lib/regs_alu.S \
+	lib/mem_fp.S \
+	lib/branch_loop.S \
+	lib/stack_abi.S
+...
+$(BUILD_DIR)/%.o: %.c
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -Iinclude -c $&lt; -o $@
+
+$(BUILD_DIR)/%.o: %.S
+	mkdir -p $(dir $@)
+	$(CC) $(ASFLAGS) -Iinclude -c $&lt; -o $@</pre>
+            <p class="omitted">已省略：run / debug / clean 等目标，以及 kernel/printk.c、
+              kernel/syscall.c、kernel/exception.c、kernel/irq.c、lib/regs_alu.S、
+              lib/mem_fp.S、lib/branch_loop.S、lib/stack_abi.S 等与本课无关的源文件行。</p>
+          </div>
+        </div>
+
+        <div class="node n-start" id="node-start" data-role="boot">
+          <div class="node-head" data-target="body-start">
+            <span class="path">boot/start.S</span>
+            <span class="role">② 启动</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="node-body" id="body-start" hidden>
+            <p>真正的入口标号是 <code>_start</code>（<code>.globl _start</code>）。它先设栈，
+              再 <code>bl clear_bss</code>（清零 .bss，同文件内的标号），
+              最后 <code>bl kernel_main</code> 跳进 <code>kernel/main.c</code>——
+              这就是“②启动→③内核入口”这条箭头。</p>
+            <pre class="code">    .section .text.boot, "ax"
+    .globl _start
+
+_start:
+    <span class="cmt">/* 设置内核栈。栈从高地址向低地址增长。 */</span>
+    la.global   $sp, boot_stack_top
+
+    <span class="cmt">/* 清零 .bss，保证未初始化的全局变量从 0 开始。 */</span>
+    bl          clear_bss
+
+    <span class="cmt">/* 进入 C 语言内核主函数。 */</span>
+    bl          kernel_main
+
+halt:
+    idle        0
+    b           halt
+
+clear_bss:
+    la.global   $t0, __bss_start
+    la.global   $t1, __bss_end
+
+1:
+    beq         $t0, $t1, 2f
+    st.b        $zero, $t0, 0
+    addi.d      $t0, $t0, 1
+    b           1b
+
+2:
+    jr          $ra</pre>
+            <p class="omitted">已省略：文件末尾 exception_entry 段（第 9/11 次课新增的异常/中断入口，144
+              字节寄存器保存），与本课 memset/memcpy/strlen 无关。</p>
+          </div>
+        </div>
+
+        <div class="node n-main" id="node-main" data-role="kernel">
+          <div class="node-head" data-target="body-main">
+            <span class="path">kernel/main.c</span>
+            <span class="role">③ 内核入口 / ⑥ 返回</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="node-body" id="body-main" hidden>
+            <p><code>kernel_main()</code> 是 C 语言入口。它 <code>#include "string.h"</code>
+              拿到六个函数的原型（③→④“声明”），随后按调用约定把参数放进寄存器调用
+              <code>memset</code>/<code>memcpy</code>/<code>strlen</code>/<code>memmove</code>/
+              <code>strcmp</code>/<code>zero_and_copy</code>——这些符号在链接时被解析到
+              <code>lib/string.S</code> 里的实现（④→⑤“实现”）；函数返回后（⑤→⑥“返回”），
+              <code>kernel_main</code> 再调用本文件内的 <code>print_char</code>/
+              <code>print_i64_dec</code>（内部都是包一层 <code>printk</code>）把结果打印到串口。</p>
+            <p class="strong-note">提示：memset/memcpy/strlen 在本文件里其实不止调用一处——
+              前面还有第 2 次课的 data_message 演示、第 5 次课的字符串遍历演示，下面这段
+              才是"第 7 次课"专门的边界测试与三个新函数（memmove/strcmp/zero_and_copy）的
+              真实调用验收。本课的重点是下面这一段。</p>
+            <pre class="code"><span class="cmt">#include "printk.h"</span>
+<span class="cmt">#include "string.h"</span>
+... <span class="omitted">（已省略 regs_alu.h / mem_fp.h / branch_loop.h / stack_abi.h /
+  syscall.h / exception.h / irq.h，与本课无关）</span>
+
+void kernel_main(void)
+{
+    ... <span class="cmt">/* 已省略第 1–6 次课的验收代码 */</span>
+
+    <span class="cmt">/* ---- 第 7 次课：memset/memcpy/strlen 边界测试 ---- */</span>
+    {
+        char buf1[4] = { 'X', 'X', 'X', 'X' };
+        char buf2[4] = { 'X', 'X', 'X', 'X' };
+
+        <span class="cmt">/* memset n=0：契约上不得改动任何字节 */</span>
+        memset(buf1, 'Z', 0);
+        printk("memset n=0 : buf[0]='");
+        print_char(buf1[0]);
+        printk("' (应仍为 X，未改动)\n");
+
+        <span class="cmt">/* memset n=1：只写第 0 字节，buf[1] 不受影响 */</span>
+        memset(buf1, 'Z', 1);
+        printk("memset n=1 : buf[0]='");
+        print_char(buf1[0]);
+        printk("' buf[1]='");
+        print_char(buf1[1]);
+        printk("' (应为 Z / X)\n");
+
+        <span class="cmt">/* memcpy n=0：契约上 dst 不得改动 */</span>
+        memcpy(buf2, "AB", 0);
+        printk("memcpy n=0: dst[0]='");
+        print_char(buf2[0]);
+        printk("' (应仍为 X，未改动)\n");
+
+        <span class="cmt">/* memcpy n=1：只搬第 0 字节，dst[1] 不受影响 */</span>
+        memcpy(buf2, "AB", 1);
+        printk("memcpy n=1: dst[0]='");
+        print_char(buf2[0]);
+        printk("' dst[1]='");
+        print_char(buf2[1]);
+        printk("' (应为 A / X)\n");
+
+        <span class="cmt">/* strlen 边界：空串长度为 0 */</span>
+        r = (long)strlen("");
+        printk("strlen \"\"  : len = ");
+        print_i64_dec(r);
+        printk(" (应为 0；非空串已在第 5 次课验收)\n");
+    }
+
+    <span class="cmt">/* ---- 更复杂的例子 1：zero_and_copy + strcmp ---- */</span>
+    {
+        char greet[16];
+
+        <span class="cmt">/* zero_and_copy 内部依次 bl memset/strlen/memcpy，
+         * 先清零整块 greet，再把 "hi7" 搬进去。 */</span>
+        zero_and_copy(greet, "hi7", sizeof(greet));
+        printk("zero_and_copy: greet=\"");
+        printk(greet);
+        printk("\"\n");
+
+        <span class="cmt">/* strcmp 验证：先清零再拷贝，天然以 '\0' 结尾 */</span>
+        if (strcmp(greet, "hi7") == 0) {
+            printk("strcmp verified: greet == \"hi7\"\n");
+        }
+        if (strcmp(greet, "hi8") != 0) {
+            printk("strcmp verified: greet != \"hi8\"\n");
+        }
+    }
+
+    <span class="cmt">/* ---- 更复杂的例子 2：memmove，memcpy 处理不了重叠区间 ---- */</span>
+    {
+        char left[8]  = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' };
+        char right[8] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' };
+        int i;
+
+        <span class="cmt">/* dst &lt; src：整体左移 2 位，覆盖区间重叠 */</span>
+        memmove(left, left + 2, 6);
+        printk("memmove left  (dst&lt;src): ");
+        for (i = 0; i &lt; 8; i++) {
+            print_char(left[i]);
+        }
+        printk(" (期望 CDEFGHGH)\n");
+
+        <span class="cmt">/* dst &gt; src：整体右移 2 位，覆盖区间同样重叠，方向相反 */</span>
+        memmove(right + 2, right, 6);
+        printk("memmove right (dst&gt;src): ");
+        for (i = 0; i &lt; 8; i++) {
+            print_char(right[i]);
+        }
+        printk(" (期望 ABABCDEF)\n");
+    }
+
+    printk("week07-libc-asm check done\n");
+
+    ... <span class="cmt">/* 已省略第 8/9/11 次课的验收代码 */</span>
+}</pre>
+          </div>
+        </div>
+
+        <div class="node n-stringh" id="node-stringh" data-role="decl">
+          <div class="node-head" data-target="body-stringh">
+            <span class="path">include/string.h</span>
+            <span class="role">④ 声明</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="node-body" id="body-stringh" hidden>
+            <p>只声明六个函数原型，不含实现；<code>#include "types.h"</code>
+              是为了拿到 <code>size_t</code>（本课不展开）。这是 <code>kernel/main.c</code>
+              能直接写 <code>memset(...)</code>/<code>memmove(...)</code> 而编译器不报错的
+              原因——真正的函数体在 <code>lib/string.S</code> 里，由链接器按同名符号接上。</p>
+            <pre class="code">#ifndef MINIOS_STRING_H
+#define MINIOS_STRING_H
+
+#include "types.h"
+
+void *memset(void *dst, int value, size_t n);
+void *memcpy(void *dst, const void *src, size_t n);
+size_t strlen(const char *s);
+
+<span class="cmt">/* memmove：区间重叠时 memcpy 处理不了，这个能。
+ * strcmp：逐字节比较，返回差值。
+ * zero_and_copy：组合 memset+strlen+memcpy，安全地把字符串放进固定缓冲区。
+ * 实现见 lib/string.S。 */</span>
+void *memmove(void *dst, const void *src, size_t n);
+int strcmp(const char *a, const char *b);
+void *zero_and_copy(void *dst, const char *src, size_t dst_size);
+
+#endif</pre>
+          </div>
+        </div>
+
+        <div class="node n-strings" id="node-strings" data-role="impl">
+          <div class="node-head" data-target="body-strings">
+            <span class="path">lib/string.S</span>
+            <span class="role">⑤ 实现</span>
+            <span class="chevron">▶</span>
+          </div>
+          <div class="node-body" id="body-strings" hidden>
+            <p>六个函数的真实汇编实现（<code>.globl</code> 导出符号，供链接器解析
+              <code>kernel/main.c</code> 里的调用）。<code>memset</code>/<code>memcpy</code>/
+              <code>strlen</code>/<code>memmove</code>/<code>strcmp</code> 都是叶子函数，
+              最后 <code>jr $ra</code> 直接返回；<code>zero_and_copy</code> 是本文件唯一的
+              非叶子函数——内部依次 <code>bl memset</code>/<code>bl strlen</code>/
+              <code>bl memcpy</code>，用 <code>$s0</code>/<code>$s1</code> 跨三次调用保活
+              <code>dst</code>/<code>src</code>。</p>
+            <pre class="code"><span class="cmt">/*
+ * miniOS 最小字符串/内存工具库。
+ * memset/memcpy/strlen：最基础的三个逐字节实现，第 2 次课起可用。
+ * memmove：memcpy 处理不了重叠区间时的真正解法（比较地址、选方向）。
+ * strcmp：逐字节比较两个字符串，返回差值。
+ * zero_and_copy：组合 memset+strlen+memcpy，安全地把字符串放进固定缓冲区，
+ *   是本文件里唯一的非叶子函数（内部有 bl，要保存 $ra 和跨调用存活的寄存器）。
+ */</span>
+
+    .section .text
+
+    .globl memset
+memset:
+    move        $t0, $a0          <span class="cmt">/* 保存原始 dst，作为返回值。 */</span>
+    beqz        $a2, 2f
+
+1:
+    st.b        $a1, $a0, 0
+    addi.d      $a0, $a0, 1
+    addi.d      $a2, $a2, -1
+    bnez        $a2, 1b
+
+2:
+    move        $a0, $t0
+    jr          $ra
+
+    .globl memcpy
+memcpy:
+    move        $t0, $a0          <span class="cmt">/* 保存原始 dst，作为返回值。 */</span>
+    beqz        $a2, 2f
+
+1:
+    ld.bu       $t1, $a1, 0
+    st.b        $t1, $a0, 0
+    addi.d      $a0, $a0, 1
+    addi.d      $a1, $a1, 1
+    addi.d      $a2, $a2, -1
+    bnez        $a2, 1b
+
+2:
+    move        $a0, $t0
+    jr          $ra
+
+<span class="cmt">/*
+ * ---- memmove：memcpy 处理不了重叠区间的真正解法 ----
+ * dst &lt; src：从头往后搬，和 memcpy 一样安全（永远读在写前面）。
+ * dst &gt; src：必须从尾往前搬，否则会在读到某个字节之前就把它覆盖掉。
+ * 用 sltu（无符号小于）比较两个地址——地址要按无符号理解，不能用 slt。
+ */</span>
+    .globl memmove
+memmove:
+    move        $t0, $a0            <span class="cmt">/* 保存原始 dst，作为返回值。 */</span>
+    beqz        $a2, 4f             <span class="cmt">/* n==0：什么都不用做。 */</span>
+
+    sltu        $t2, $a0, $a1       <span class="cmt">/* t2 = (dst &lt; src) ? 1 : 0 */</span>
+    bnez        $t2, 2f             <span class="cmt">/* dst &lt; src：正向搬，和 memcpy 一样 */</span>
+
+    <span class="cmt">/* dst &gt;= src：从尾往前搬，先把两个指针都移到最后一个字节 */</span>
+    add.d       $a0, $a0, $a2
+    add.d       $a1, $a1, $a2
+    addi.d      $a0, $a0, -1
+    addi.d      $a1, $a1, -1
+
+1:
+    ld.bu       $t1, $a1, 0
+    st.b        $t1, $a0, 0
+    addi.d      $a0, $a0, -1
+    addi.d      $a1, $a1, -1
+    addi.d      $a2, $a2, -1
+    bnez        $a2, 1b
+    b           4f
+
+2:
+    ld.bu       $t1, $a1, 0
+    st.b        $t1, $a0, 0
+    addi.d      $a0, $a0, 1
+    addi.d      $a1, $a1, 1
+    addi.d      $a2, $a2, -1
+    bnez        $a2, 2b
+
+4:
+    move        $a0, $t0
+    jr          $ra
+
+    .globl strlen
+strlen:
+    move        $t0, $a0          <span class="cmt">/* t0 记录字符串起始地址。 */</span>
+
+1:
+    ld.bu       $t1, $a0, 0
+    beqz        $t1, 2f
+    addi.d      $a0, $a0, 1
+    b           1b
+
+2:
+    sub.d       $a0, $a0, $t0
+    jr          $ra
+
+<span class="cmt">/*
+ * ---- strcmp ----
+ * 逐字节比较，遇到不同字节或同时读到 '\0' 就停：
+ *   返回 0   ：两串相等
+ *   返回 !=0 ：第一个不同字节的差值（教学简化，不做饱和处理）
+ */</span>
+    .globl strcmp
+strcmp:
+1:
+    ld.bu       $t0, $a0, 0       <span class="cmt">/* t0 = *a */</span>
+    ld.bu       $t1, $a1, 0       <span class="cmt">/* t1 = *b */</span>
+    bne         $t0, $t1, 2f      <span class="cmt">/* 字节不同：跳出去算差值 */</span>
+    beqz        $t0, 3f           <span class="cmt">/* 两边都读到 '\0'：字符串相等 */</span>
+    addi.d      $a0, $a0, 1
+    addi.d      $a1, $a1, 1
+    b           1b
+
+2:
+    sub.d       $a0, $t0, $t1
+    jr          $ra
+
+3:
+    move        $a0, $zero
+    jr          $ra
+
+<span class="cmt">/*
+ * ---- zero_and_copy（本文件唯一的非叶子函数） ----
+ * 先把整块 dst 清零，再把 src 的内容搬进去。内部依次 bl memset/strlen/memcpy：
+ * dst/src 要跨三次 bl 存活，借用 $s0/$s1（对照 sa_strlen_and_puts 用
+ * $s0/$s1 跨两次 bl 保活 s/len 的手法，见 lib/stack_abi.S）。
+ * 附带的好处：因为先 memset 清零，dst_size 只要大于 strlen(src)，
+ * 结果天然是以 '\0' 结尾的合法 C 字符串——只调用 memcpy 做不到这一点。
+ */</span>
+    .globl zero_and_copy
+zero_and_copy:
+    addi.d      $sp, $sp, -32
+    st.d        $ra, $sp, 24
+    st.d        $s0, $sp, 16     <span class="cmt">/* s0 = dst，跨三次 bl 保存 */</span>
+    st.d        $s1, $sp, 8      <span class="cmt">/* s1 = src，跨三次 bl 保存 */</span>
+
+    move        $s0, $a0         <span class="cmt">/* dst */</span>
+    move        $s1, $a1         <span class="cmt">/* src */</span>
+
+    move        $a1, $zero        <span class="cmt">/* memset(dst, 0, dst_size)：$a0/$a2 已是对的 */</span>
+    bl          memset
+
+    move        $a0, $s1          <span class="cmt">/* strlen(src) */</span>
+    bl          strlen           <span class="cmt">/* a0 = len */</span>
+
+    move        $a2, $a0         <span class="cmt">/* memcpy(dst, src, len) */</span>
+    move        $a1, $s1
+    move        $a0, $s0
+    bl          memcpy           <span class="cmt">/* memcpy 返回 dst，正好也是本函数的返回值 */</span>
+
+    ld.d        $ra, $sp, 24
+    ld.d        $s0, $sp, 16
+    ld.d        $s1, $sp, 8
+    addi.d      $sp, $sp, 32
+    jr          $ra</pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="item"><span class="swatch"></span>编译 / 静态包含（构建期）</span>
+      <span class="item"><span class="swatch call"></span>跳转 / 调用（运行期，橙色为“播放”当前高亮）</span>
+      <span class="item"><span class="swatch ret"></span>返回（运行期，绿色）</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>文件关系速查表</h2>
+    <table class="reltable">
+      <thead><tr><th>文件路径</th><th>角色</th><th>被谁调用 / 包含</th><th>调用 / 包含了谁</th></tr></thead>
+      <tbody>
+        <tr><td>Makefile</td><td>构建总控</td><td>（人工执行 <code>make</code>）</td><td>boot/start.S、kernel/main.c、lib/string.S 等全部 SRCS_C/SRCS_S</td></tr>
+        <tr><td>boot/start.S</td><td>启动入口</td><td>QEMU <code>-kernel</code> 加载后跳到 <code>_start</code></td><td>kernel/main.c 的 <code>kernel_main</code>（<code>bl</code>）</td></tr>
+        <tr><td>kernel/main.c</td><td>内核 C 入口 / 调用方</td><td>boot/start.S（<code>bl kernel_main</code>）</td><td>include/string.h（#include）、lib/string.S 的六个函数（调用）</td></tr>
+        <tr><td>include/string.h</td><td>函数声明</td><td>kernel/main.c（#include）</td><td>include/types.h（#include，取 size_t）</td></tr>
+        <tr><td>lib/string.S</td><td>函数实现</td><td>kernel/main.c（调用，经链接器解析同名符号）</td><td>无跨文件调用（<code>zero_and_copy</code> 内部 <code>bl</code> 的 memset/strlen/memcpy 都在本文件内）</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>本课文档资料关系（讲的是同一套代码，不是彼此的替代品）</h2>
+    <table class="reltable">
+      <thead><tr><th>文档</th><th>写给谁</th><th>内容</th><th>和其他文档的关系</th></tr></thead>
+      <tbody>
+        <tr><td><code>README.md</code></td><td>所有人</td><td>本次课资料索引</td><td>链接到下面全部文档，是唯一的入口</td></tr>
+        <tr><td><code>student_notes.md</code></td><td>学生</td><td>库函数/链接器等背景概念的生活化类比讲解 + 六个函数逐个配类比讲解</td><td><b>先读这个</b>——教材没覆盖这次课内容，PPT 又浓缩，这份材料负责把抽象概念用刷墙/复印文件/量绳子/挪书架/对暗号/搬家具等类比讲透，不依赖上面的动画或 PPT 也能独立看懂</td></tr>
+        <tr><td>本页 <code>week07_system_overview.html</code></td><td>学生 / 教师</td><td>本页上方的“文件关系图”与“播放调用流程”——同一套代码（Makefile→boot/start.S→kernel/main.c→string.h→string.S）如何真实构建、调用、返回</td><td>补的是 <code>student_notes.md</code> 没画出来的“代码怎么串起来跑”这一层；建议顺序：先读 <code>student_notes.md</code> 建立概念，再回来点开本页每个节点对照真实源码</td></tr>
+        <tr><td><code>lecture_notes.md</code></td><td>教师</td><td>教学安排、课堂讲解节奏、板书与课堂 Demo 建议</td><td>和 <code>student_notes.md</code> 覆盖同一批知识点，但站在“怎么教”的角度，含课堂建议等教师专用内容，不是给学生直接看的</td></tr>
+        <tr><td><code>lab.md</code></td><td>学生</td><td>实验任务（Task1–Task8）与验收标准</td><td>是 <code>student_notes.md</code> 的配套实验——读完概念和六个函数讲解，来这里动手写代码、跑验收</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>
+    单文件、内嵌 CSS/JS，无外部依赖，可直接双击在浏览器打开。配套资料：学生阅读材料
+    <code>docs/07/student_notes.md</code>（背景概念生活化类比，建议先读这个）　教师讲义：
+    <code>docs/07/lecture_notes.md</code>　实验指导书：<code>docs/07/lab.md</code>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- 展开/收起 ----------
+  document.querySelectorAll(".node-head").forEach(function(head){
+    head.addEventListener("click", function(){
+      var node = head.closest(".node");
+      var body = document.getElementById(head.dataset.target);
+      var willExpand = body.hasAttribute("hidden");
+      body.toggleAttribute("hidden", !willExpand);
+      node.classList.toggle("expanded", willExpand);
+      // 展开/收起会改变节点高度，连线要重新计算
+      requestAnimationFrame(drawEdges);
+      setTimeout(drawEdges, 260);
+    });
+  });
+
+  // ---------- 连线（真实构建/调用/返回关系） ----------
+  var wrap = document.getElementById("diagramWrap");
+  var svg  = document.getElementById("edgesSvg");
+
+  // 每条边：source 节点 id、target 节点 id、种类（build/call/decl/ret）、可选的水平/垂直偏移
+  var EDGES = [
+    {id:"e-build", from:"node-makefile", to:"node-start",   kind:"build", label:"构建产物 minios.elf，QEMU 加载后从这里开始执行"},
+    {id:"e-boot",  from:"node-start",    to:"node-main",    kind:"build", label:"bl kernel_main"},
+    {id:"e-decl",  from:"node-main",     to:"node-stringh", kind:"decl",  label:"#include \"string.h\""},
+    {id:"e-call",  from:"node-main",     to:"node-strings", kind:"call",  label:"调用 memset/memcpy/strlen", offset:-16},
+    {id:"e-ret",   from:"node-strings",  to:"node-main",    kind:"ret",   label:"jr $ra 返回，printk 打印结果", offset:16}
+  ];
+
+  function rectOf(id){
+    var el = document.getElementById(id);
+    var r = el.getBoundingClientRect();
+    var w = wrap.getBoundingClientRect();
+    return {left:r.left-w.left, top:r.top-w.top, right:r.right-w.left, bottom:r.bottom-w.top,
+            cx:(r.left+r.right)/2-w.left, cy:(r.top+r.bottom)/2-w.top, w:r.width, h:r.height};
+  }
+
+  function anchorPair(a, b, offset){
+    offset = offset || 0;
+    // 判断主要是纵向关系还是横向关系
+    var vGap = Math.max(0, Math.max(a.top,b.top) - Math.min(a.bottom,b.bottom));
+    var hGap = Math.max(0, Math.max(a.left,b.left) - Math.min(a.right,b.right));
+    if (hGap > vGap) {
+      // 横向：从较左节点右边缘 到 较右节点左边缘
+      if (a.cx <= b.cx) return {x1:a.right, y1:a.cy, x2:b.left, y2:b.cy};
+      return {x1:a.left, y1:a.cy, x2:b.right, y2:b.cy};
+    }
+    // 纵向：从较上节点下边缘 到 较下节点上边缘（可加水平偏移，避免调用/返回两条线重叠）
+    if (a.cy <= b.cy) return {x1:a.cx+offset, y1:a.bottom, x2:b.cx+offset, y2:b.top};
+    return {x1:a.cx+offset, y1:a.top, x2:b.cx+offset, y2:b.bottom};
+  }
+
+  var MARKER = {build:"url(#arrowNavy)", decl:"url(#arrowNavy)", call:"url(#arrowWarn)", ret:"url(#arrowGood)"};
+  var STROKE = {build:"#1E2761", decl:"#1E2761", call:"#B85F22", ret:"#2A7E4E"};
+
+  function drawEdges(){
+    // 清掉旧的 path（保留 defs）
+    svg.querySelectorAll("path.edge").forEach(function(p){ p.remove(); });
+    EDGES.forEach(function(e){
+      var a = rectOf(e.from), b = rectOf(e.to);
+      var pts = anchorPair(a, b, e.offset);
+      var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+      var midY = (pts.y1+pts.y2)/2, midX = (pts.x1+pts.x2)/2;
+      var d;
+      if (Math.abs(pts.x1-pts.x2) < 2) {
+        d = "M"+pts.x1+","+pts.y1+" L"+pts.x2+","+pts.y2;
+      } else {
+        d = "M"+pts.x1+","+pts.y1+" C"+pts.x1+","+midY+" "+pts.x2+","+midY+" "+pts.x2+","+pts.y2;
+      }
+      path.setAttribute("d", d);
+      path.setAttribute("class","edge edge-"+e.kind);
+      path.setAttribute("data-edge", e.id);
+      path.setAttribute("fill","none");
+      path.setAttribute("stroke", STROKE[e.kind]);
+      path.setAttribute("stroke-width", "3");
+      path.setAttribute("marker-end", MARKER[e.kind]);
+      if (e.kind === "decl") path.setAttribute("stroke-dasharray","7 6");
+      svg.appendChild(path);
+    });
+  }
+
+  window.addEventListener("resize", drawEdges);
+  window.addEventListener("load", drawEdges);
+  drawEdges();
+
+  // ---------- 播放调用流程 ----------
+  var STEPS = [
+    {label:"① 构建", nodes:["node-makefile"], edges:["e-build"],
+     text:"Makefile 把 boot/start.S、kernel/main.c、lib/string.S（还有其余与本课无关的源文件）编译并链接成 build/minios.elf。"},
+    {label:"② 启动", nodes:["node-start"], edges:["e-build","e-boot"],
+     text:"QEMU 加载 minios.elf 后从 boot/start.S 的 _start 开始执行：设栈 → bl clear_bss → bl kernel_main。"},
+    {label:"③ 内核入口", nodes:["node-main"], edges:["e-boot"],
+     text:"kernel_main() 开始运行，执行到「第 7 次课」那一段，准备调用 memset/memcpy/strlen，以及更复杂的 memmove/strcmp/zero_and_copy。"},
+    {label:"④ 声明", nodes:["node-main","node-stringh"], edges:["e-decl"],
+     text:"kernel/main.c 顶部 #include \"string.h\"，编译器由此知道六个函数的原型和签名。"},
+    {label:"⑤ 实现", nodes:["node-strings"], edges:["e-call"],
+     text:"链接器把调用点解析到 lib/string.S 里的同名符号；zero_and_copy 内部还会再 bl 调用同文件里的 memset/strlen/memcpy。"},
+    {label:"⑥ 返回", nodes:["node-main"], edges:["e-ret"],
+     text:"函数以 jr $ra（zero_and_copy 走完三次 bl 后同样 jr $ra）返回 kernel_main，结果经 print_char/printk 打印到串口。"}
+  ];
+
+  var cur = -1, timer = null;
+  var playBtn = document.getElementById("playBtn");
+  var stepN = document.getElementById("stepN");
+  var stepLabel = document.getElementById("stepLabel");
+  var stepCaption = document.getElementById("stepCaption");
+
+  function clearHighlights(){
+    document.querySelectorAll(".node.hl").forEach(function(n){ n.classList.remove("hl"); });
+    svg.querySelectorAll("path.edge").forEach(function(p){ p.classList.remove("hl"); });
+  }
+
+  function applyStep(i){
+    clearHighlights();
+    var s = STEPS[i];
+    s.nodes.forEach(function(id){ document.getElementById(id).classList.add("hl"); });
+    s.edges.forEach(function(id){
+      var p = svg.querySelector('path[data-edge="'+id+'"]');
+      if (p) { p.classList.add("hl"); p.setAttribute("stroke-width","5"); }
+    });
+    // 未高亮的边恢复默认粗细
+    svg.querySelectorAll("path.edge:not(.hl)").forEach(function(p){ p.setAttribute("stroke-width","3"); });
+    stepN.textContent = (i+1)+"/6";
+    stepLabel.textContent = s.label;
+    stepCaption.textContent = s.text;
+  }
+
+  function goto(i){
+    cur = ((i % STEPS.length) + STEPS.length) % STEPS.length;
+    applyStep(cur);
+  }
+
+  function stopPlay(){
+    if (timer) { clearInterval(timer); timer = null; }
+    playBtn.textContent = "▶ 播放调用流程";
+  }
+
+  playBtn.addEventListener("click", function(){
+    if (timer) { stopPlay(); return; }
+    if (cur < 0) cur = -1;
+    goto(cur+1);
+    playBtn.textContent = "⏸ 暂停";
+    timer = setInterval(function(){
+      if (cur >= STEPS.length-1) { stopPlay(); return; }
+      goto(cur+1);
+    }, 2200);
+  });
+  document.getElementById("nextBtn").addEventListener("click", function(){ stopPlay(); goto(cur+1<0?0:cur+1); });
+  document.getElementById("prevBtn").addEventListener("click", function(){ stopPlay(); goto(cur-1); });
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    stopPlay(); cur = -1; clearHighlights();
+    stepN.textContent = "–"; stepLabel.textContent = "未开始";
+    stepCaption.textContent = "点击“播放调用流程”，按 构建 → 启动 → 内核入口 → 声明 → 实现 → 返回 六步高亮下方节点与连线。";
+  });
+
+})();
+</script>
+</body>
+</html>

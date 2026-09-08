@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 7 次课动画 - LoongArch miniOS</title>
+  <link rel="stylesheet" href="../assets/shared.css">
+</head>
+<body>
+  <main class="site-shell">
+    <nav class="topbar" aria-label="站点导航">
+      <p class="brand">第 7 次课：memset/memcpy/strlen 汇编实现</p>
+      <a class="home-link" href="../">返回首页</a>
+    </nav>
+
+    <section class="hero">
+      <p class="eyebrow">第 7 次课 · tag 07-libc-asm</p>
+      <h1>课堂演示动画</h1>
+      <p class="lead">这次课教材没有覆盖的内容比较多——库函数是什么、miniOS 为什么要自己写、链接器怎么把调用接到实现。
+        下面这个页面把 Makefile → boot/start.S → kernel/main.c → include/string.h → lib/string.S
+        这条真实构建/调用链摆在一起，可以点开每个文件看真实源码，也可以按执行顺序播放一遍；页面下方还有
+        一张文档资料关系表，说明这次课的讲义、实验指导书、学生阅读材料各自该看哪一份、按什么顺序看。</p>
+    </section>
+
+    <section class="grid" aria-label="第 7 次课动画列表">
+      <a class="card" href="system-overview/">
+        <small>Call Graph · 可播放</small>
+        <strong>库函数系统总览</strong>
+        <span>从 make 构建、QEMU 加载、_start 启动，到 kernel_main 调用 memset/memcpy/strlen/memmove/strcmp/zero_and_copy
+          六个函数、再返回打印结果的完整链路；点按钮可播放真实执行顺序，附文件关系速查表与文档资料关系表。</span>
+      </a>
+    </section>
+
+    <p class="note">建议先读 <code>docs/07/student_notes.md</code>（生活化类比讲背景概念），再看这个动画对照真实源码，
+      最后去做 <code>docs/07/lab.md</code> 的实验任务。</p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 3 次课动画 - LoongArch miniOS</title>
+  <link rel="stylesheet" href="../assets/shared.css">
+</head>
+<body>
+  <main class="site-shell">
+    <nav class="topbar" aria-label="站点导航">
+      <p class="brand">第 3 次课：寄存器、数据表示与基础指令</p>
+      <a class="home-link" href="../">返回首页</a>
+    </nav>
+
+    <section class="hero">
+      <p class="eyebrow">第 3 次课 · tag 03-regs-alu</p>
+      <h1>课堂演示动画</h1>
+      <p class="lead">本课系统讲完教材第 2 章「指令风貌」与 §3.1「运算指令」，其中数据在寄存器里
+        怎么按原码/反码/补码存放、加法为什么会溢出，是最容易停留在"背结论"的一段。
+        下面这个页面把这三步转换和溢出判断做成可交互动画：可以自己输入十进制数、切换 8/32 位，
+        逐步（也可自动播放）看清符号位怎么定、反码怎么逐位取反、补码怎么"末位加 1 向左进位"，
+        以及两个数相加时怎么判断溢出——附教材 <code>0x7fffffff + 0x7fffffff → −2</code> 原例。</p>
+    </section>
+
+    <section class="grid" aria-label="第 3 次课动画列表">
+      <a class="card" href="sign-ones-twos-overflow/">
+        <small>交互 · 可逐步 / 自动播放</small>
+        <strong>原码 / 反码 / 补码 与溢出</strong>
+        <span>模式一：输入十进制数，逐步看原码→反码→补码的转换动画（含逐位取反、末位加 1 进位动画）。
+          模式二：输入两个操作数，逐位相加并用两条规则交叉判断是否溢出，结果按补码解码回十进制。</span>
+      </a>
+    </section>
+
+    <p class="note">建议先看 <code>docs/03/lecture_notes.md</code> §5.7 / §5.7.5（原码反码补码与溢出的课堂口径），
+      再用这个动画自己代入几个数字验证，最后对照 <code>docs/03/lab.md</code> 做实验任务。</p>
+  </main>
+</body>
+</html>
