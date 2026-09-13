@@ -45,9 +45,9 @@ git fetch --tags
 1. 说清定时器三个 CSR（`TCFG`/`TVAL`/`TICLR`）与两层使能（`ECFG`/`CRMD.IE`）的分工。
 2. 跑通一个真实的周期性定时器中断 demo，并能调参观察 tick 节奏变化。
 3. 解释异常与中断为何共享同一个 `EENTRY` 入口，以及中断入口为何要保存更多寄存器。
-4. **亲手写代码**验证定时器周期重装（读 TVAL）、实现变速 tick，而不只是观察别人写好的代码。
+4. **亲手写代码**验证定时器周期重装（读 TVAL）、实现三档变速 tick、实现 `timer_pause()`/`timer_resume()`，而不只是观察别人写好的代码。
 5. 画出 miniOS 当前的内核服务地图，说清模块边界。
-6. **亲手写一个 `kernel_integration_demo()`**，把启动、库函数、系统调用、异常、中断这条服务链真正串联跑通一遍，体会"操作系统 = 服务集成 + 事件驱动模拟"。
+6. **亲手写一个 `kernel_integration_demo()`**，把启动、库函数、系统调用（含防御性测试）、异常、中断（含暂停/恢复）这条服务链真正串联跑通一遍，体会"操作系统 = 服务集成 + 事件驱动模拟"。
 
 ## 2. 实验环境与准备（必须先做对）
 
@@ -83,8 +83,8 @@ git switch -c my-11-lab 11-irq-kernel-recap
 ```text
 boot/start.S          （exception_entry，第9次课已有，本课升级为144字节栈帧）
 kernel/exception.c    （exception_handler，本课新增 Ecode==0 分支）
-kernel/irq.c          （本课可运行 demo：timer_init/irq_dispatch/timer_stop；Task3.5 在此新增 timer_read_remaining）
-include/irq.h
+kernel/irq.c          （本课可运行 demo：timer_init/irq_dispatch/timer_stop；Task3.5/3.7 在此新增 timer_read_remaining/timer_pause/timer_resume）
+include/irq.h         （Task3.7 在此补充 timer_pause/timer_resume 声明）
 kernel/main.c         （定时器中断验收段；Task3.6/Task6 在此新增代码）
 kernel/syscall.c      （第8次课已有，Task6 会调用 syscall_dispatch/SYS_WRITE）
 include/syscall.h
@@ -95,7 +95,7 @@ lib/string.S          （第2/7次课已有，Task6 会调用 memset/memcpy/strl
 
 | 教学单元 | 对应学时 | 实验内容 | 建议完成点 |
 |---|---|---|---|
-| 单元一：定时器中断上机 | 第 1–2 学时 | Task 1–3.6 | 第 2 学时结束 |
+| 单元一：定时器中断上机 | 第 1–2 学时 | Task 1–3.7 | 第 2 学时结束 |
 | 单元二：内核服务整理 | 第 3–4 学时 | Task 4–8 | 第 4 学时结束 |
 
 ## 4. 单元一：定时器中断上机（第 1–2 学时）
@@ -154,18 +154,69 @@ week11-irq-kernel-recap check done
 
 - 重新 `make run`，核对：每次 tick 打印的 TVAL 都接近初始 InitVal（`TIMER_COUNT`），而不是持续减到 0 不再变化——用代码亲手验证"周期模式会自动重装初值"这句话，而不是只背下来。
 
-### Task3.6 实现变速 tick（必做，写代码）
+### Task3.6 实现三档变速 tick（必做，写代码）
 
-- 在 `kernel/main.c` 定时器 `while` 循环里，当 `irq_ticks() == 2` 时，手动再调用一次 `timer_init()`，换一个更小的 `TIMER_COUNT`（比如原值的 1/4），观察后面几次 tick 明显变快。
-- 关键考点：想清楚"只改局部变量 `TIMER_COUNT` 会不会生效"——不会，它只在最开始那一次调用 `timer_init()` 时起作用，必须**重新调用一次 `timer_init()`** 才能真正改写硬件的 `TCFG` 配置。
+不是只切一次速度，而是用一个**速度表**把 5 次 tick 分成三档，在 `kernel/main.c` 里改造循环：
+
+```c
+static const unsigned long speed_table[3] = {
+    TIMER_COUNT,        /* 第0档：原速度，tick 0-1 */
+    TIMER_COUNT / 4,     /* 第1档：4倍速，tick 2-3 */
+    TIMER_COUNT / 16,    /* 第2档：16倍速，tick 4 */
+};
+unsigned long stage = 0;
+
+timer_init(speed_table[0]);
+printk("timer_init: periodic timer interrupt enabled\n");
+
+while (irq_ticks() < 5) {
+    if (irq_ticks() == 2 && stage == 0) {
+        timer_init(speed_table[1]);
+        stage = 1;
+    } else if (irq_ticks() == 4 && stage == 1) {
+        timer_init(speed_table[2]);
+        stage = 2;
+    }
+    __asm__ volatile("idle 0");
+}
+```
+
+- 关键考点：想清楚"只改局部变量 `TIMER_COUNT` 会不会生效"——不会，它只在最开始那一次调用 `timer_init()` 时起作用，必须**重新调用一次 `timer_init()`** 才能真正改写硬件的 `TCFG` 配置；`stage` 变量是为了保证每一档只切换一次，不要在还没到下一个阈值时重复调用。
 - 写一句话结论：`timer_init()` 能不能在定时器已经跑起来的情况下被再次调用？会发生什么（提示：`timer_init` 内部本身就是"整体重新配置+重新使能"，可以放心重复调用）。
+- 验收：观察到明显的三段节奏——慢、快、更快。
+
+### Task3.7 实现 timer_pause()/timer_resume()（必做，写代码）
+
+`timer_stop()` 只是"关分源开关"，`TCFG` 的配置(周期倒数)其实还在，只是不再触发中断。这个任务要求把"暂停/恢复"和"彻底停止"在接口层面分开，写出语义更清楚的一对函数。
+
+在 `kernel/irq.c` 新增（可以直接复用已有的 `ecfg_enable_timer_line`/`ecfg_disable_timer_line`）：
+
+```c
+/* 暂停：只关分源开关，TCFG 配置和已计数的 tick 都保留，可随时恢复 */
+void timer_pause(void)
+{
+    ecfg_disable_timer_line();
+}
+
+/* 恢复：重新打开分源开关，不重新写 TCFG——直接从暂停前的状态继续倒数 */
+void timer_resume(void)
+{
+    ecfg_enable_timer_line();
+}
+```
+
+在 `include/irq.h` 里加上这两个函数的声明（参照 `timer_stop`/`timer_init` 已有的写法）。
+
+- 书面回答：`timer_pause()`/`timer_stop()` 两个函数的**函数体**几乎一样，为什么还要分开定义两个名字？（提示：接口语义比实现更重要——调用者看函数名就该知道"这个中断以后还会不会回来"）
+- 这两个函数会在 Task6 的 `kernel_integration_demo()` 里实际用到，先写好待用。
 
 ### 单元一阶段验收
 
-- `make run` 输出与 Task2 摘录一致，且能看到 Task3.5 新增的 TVAL 打印行、Task3.6 变速后的 tick 节奏变化。
+- `make run` 输出与 Task2 摘录一致，且能看到 Task3.5 新增的 TVAL 打印行、Task3.6 三档变速的节奏变化。
 - 有至少两组 `TIMER_COUNT` 取值的调参记录（Task3）。
 - 能解释中断入口为什么要保存比第 9 次课更多的寄存器（讲义 §4.4）。
 - 能解释为什么 Task3.6 必须重新调用 `timer_init()` 才能生效，而不是改个局部变量就够了。
+- `timer_pause()`/`timer_resume()` 编译通过（Task3.7），能说清它们和 `timer_stop()`/`timer_init()` 的语义差异。
 
 ## 5. 单元二：miniOS 内核服务整理（第 3–4 学时）
 
@@ -184,15 +235,16 @@ week11-irq-kernel-recap check done
 
 ### Task6 实现 kernel_integration_demo()：一次操作系统全服务模拟（必做，写代码）
 
-在 `kernel/main.c` 里新增一个函数 `kernel_integration_demo(void)`，紧跟在服务地图讨论（Task4/Task5）之后、`week11-irq-kernel-recap check done` 之前调用它，依次**真正串联**本课程目前学过的全部内核服务（不是画图，是让它们在同一次运行里真实跑一遍）：
+在 `kernel/main.c` 里新增一个函数 `kernel_integration_demo(void)`，紧跟在服务地图讨论（Task4/Task5）之后、`week11-irq-kernel-recap check done` 之前调用它，依次**真正串联**本课程目前学过的全部内核服务（不是画图，是让它们在同一次运行里真实跑一遍）。这个任务依赖 Task3.7 已经写好的 `timer_pause`/`timer_resume`，建议先完成 Task3.7 再做本任务：
 
 1. **库函数（第2/7次课）**：用 `memset` 清零一段小缓冲区，`memcpy` 拷贝一段文本进去，`strlen` 算出长度，`printk` 打印结果——模拟"内存管理雏形"。
-2. **系统调用（第8次课）**：调用 `syscall_dispatch(SYS_WRITE, 1, (long)msg, len)`（而不是直接调 `printk`/`uart_putc`），走一遍"用户态请求内核服务"的路径。
-3. **同步异常（第9次课）**：执行一次 `__asm__ volatile("break 0")`，观察 `exception_handler` 打印 ESTAT/ERA 并安全恢复。
-4. **异步中断（本课单元一）**：复用 `timer_init`/`irq_ticks`/`timer_stop`，再等待若干次 tick。
-5. 全部完成后打印一行 `kernel_integration_demo: OS lifecycle simulated` 作为集成验收串。
+2. **系统调用正常路径（第8次课）**：调用 `syscall_dispatch(SYS_WRITE, 1, (long)msg, len)`（而不是直接调 `printk`/`uart_putc`），走一遍"用户态请求内核服务"的路径。
+3. **系统调用防御性测试**：再调用一次 `syscall_dispatch(SYS_WRITE, 99, ...)`（`fd=99` 是非法值），检查返回值是不是 `-1`，打印一行"非法 fd 被正确拒绝"或"BUG"——验证 `sys_write` 的参数校验真的生效，而不是只是看了一眼代码。
+4. **同步异常（第9次课）**：执行一次 `__asm__ volatile("break 0")`，观察 `exception_handler` 打印 ESTAT/ERA 并安全恢复。
+5. **异步中断 + 暂停/恢复（本课单元一 Task3.7）**：启动定时器，先等 2 次 tick，调用 `timer_pause()` 并打印"已暂停，tick 数=N"，确认停住不再增加，再调用 `timer_resume()` 继续等到共 5 次 tick，最后 `timer_stop()`——不但走一遍中断，还验证了 Task3.7 写的暂停/恢复接口真的有效。
+6. 全部完成后打印一行 `kernel_integration_demo: OS lifecycle simulated` 作为集成验收串。
 
-**提示（容易踩的坑）**：`irq_ticks()` 是**全程累计**的全局计数，单元一已经把它跑到了 5，`timer_stop()` 不会把它清零。所以这里不能直接写 `while (irq_ticks() < 3)`（条件一开始就已经不成立，循环一次都不会进），要记录"本次开始时的 tick 数"再加 N：
+**提示（容易踩的坑）**：`irq_ticks()` 是**全程累计**的全局计数，单元一已经把它跑到了 5，`timer_stop()`/`timer_pause()` 都不会把它清零。所以判断"这次又等了几个 tick"不能直接写 `while (irq_ticks() < 3)`（条件一开始就已经不成立，循环一次都不会进），要记录"本次开始时的 tick 数"再加 N：
 
 ```c
 #include "syscall.h"
@@ -203,6 +255,7 @@ static void kernel_integration_demo(void)
     char buf[32];
     const char *msg = "hello from syscall\n";
     unsigned long start_ticks;
+    long bad_ret;
 
     /* 1. 库函数 */
     memset(buf, 0, sizeof(buf));
@@ -210,16 +263,32 @@ static void kernel_integration_demo(void)
     printk("integration: buf=");
     printk(buf);
 
-    /* 2. 系统调用 */
+    /* 2. 系统调用：正常路径 */
     syscall_dispatch(SYS_WRITE, 1, (long)msg, (long)strlen(msg));
 
-    /* 3. 同步异常 */
+    /* 3. 系统调用：防御性测试，fd=99 非法，期望返回 -1 */
+    bad_ret = syscall_dispatch(SYS_WRITE, 99, (long)msg, (long)strlen(msg));
+    if (bad_ret == -1) {
+        printk("integration: illegal fd correctly rejected (-1)\n");
+    } else {
+        printk("integration: BUG - illegal fd not rejected!\n");
+    }
+
+    /* 4. 同步异常 */
     __asm__ volatile("break 0");
 
-    /* 4. 异步中断（注意 irq_ticks() 全程累计，要用基准值+N，不能直接 <N） */
+    /* 5. 异步中断 + 暂停/恢复（注意 irq_ticks() 全程累计，要用基准值+N，不能直接 <N） */
     start_ticks = irq_ticks();
     timer_init(0x800000UL);
-    while (irq_ticks() < start_ticks + 3) {
+    while (irq_ticks() < start_ticks + 2) {
+        __asm__ volatile("idle 0");
+    }
+    timer_pause();
+    printk("integration: timer paused, ticks frozen at ");
+    printk_udec(irq_ticks());
+    printk("\n");
+    timer_resume();
+    while (irq_ticks() < start_ticks + 5) {
         __asm__ volatile("idle 0");
     }
     timer_stop();
@@ -230,7 +299,7 @@ static void kernel_integration_demo(void)
 
 （上面是骨架提示，不要整段照抄，自己理解每一步在调用哪个模块、对应哪次课。）函数直接写在 `kernel/main.c` 里即可，不需要新建源文件（避免改动 `Makefile`）。
 
-验收：`make run` 能看到上述 5 步的真实输出，顺序正确，不卡死、不复位，最后能看到集成验收串。
+验收：`make run` 能看到上述 6 步的真实输出，顺序正确，不卡死、不复位，能看到"暂停后 tick 数不再变化、恢复后继续变化"，最后能看到集成验收串。
 
 ### Task7 为第 12 次课准备
 
@@ -246,9 +315,10 @@ static void kernel_integration_demo(void)
 - 定时器中断真实跑通，输出与 Task2 摘录一致
 - 能解释 `ESTAT.Ecode` 如何区分异常与中断
 - `timer_read_remaining()` 打印的 TVAL 能体现周期模式自动重装（Task3.5）
-- 变速 tick 效果真实可见，能说明为什么必须重新调用 `timer_init()`（Task3.6）
+- 三档变速 tick 效果真实可见，能说明为什么必须重新调用 `timer_init()`（Task3.6）
+- `timer_pause()`/`timer_resume()` 编译通过，能说清与 `timer_stop()`/`timer_init()` 的语义差异（Task3.7）
 - 服务地图完整，边界问答有理有据（Task4–5）
-- `kernel_integration_demo()` 真实跑通，5 个环节顺序正确、不卡死（Task6）
+- `kernel_integration_demo()` 真实跑通，6 个环节顺序正确、不卡死，含非法 fd 防御性测试与暂停/恢复效果（Task6）
 - 能说明：`make` 须在 WSL/Linux 执行，不能在 Windows PowerShell 直接执行
 
 ## 7. 实验报告要求
@@ -257,10 +327,10 @@ static void kernel_integration_demo(void)
 
 1. 环境说明（OS、是否 WSL、工具版本摘要）
 2. 关键命令与**真实输出**（可截断，但不可编造）
-3. 调参记录（Task3）、变速 tick 记录（Task3.6）与故障复现记录（Task8，若完成）
-4. `timer_read_remaining()` 的 TVAL 输出摘录（Task3.5）
+3. 调参记录（Task3）、三档变速 tick 记录（Task3.6）与故障复现记录（Task8，若完成）
+4. `timer_read_remaining()` 的 TVAL 输出摘录（Task3.5）与 `timer_pause`/`timer_resume` 说明（Task3.7）
 5. 服务地图与边界问答（Task4–5）
-6. `kernel_integration_demo()` 的完整输出摘录（Task6）
+6. `kernel_integration_demo()` 的完整输出摘录，含防御性测试与暂停/恢复片段（Task6）
 7. 问题与解决过程（若有）
 8. 思考题作答
 
@@ -277,10 +347,10 @@ static void kernel_integration_demo(void)
 ## 10. 提交清单
 
 - [ ] 实验报告（PDF/Markdown）
-- [ ] 关键输出摘录（含调参对比、变速 tick 记录、TVAL 读数）
+- [ ] 关键输出摘录（含调参对比、三档变速 tick 记录、TVAL 读数、暂停/恢复片段）
 - [ ] 服务地图（图片或手绘照片）
 - [ ] `kernel_integration_demo()` 的完整输出摘录
-- [ ] 需要提交的代码补丁或笔记（按教师要求，含 Task3.5/3.6/6 新增代码）
+- [ ] 需要提交的代码补丁或笔记（按教师要求，含 Task3.5/3.6/3.7/6 新增代码）
 
 ## 11. 常见故障速查
 
@@ -292,4 +362,5 @@ static void kernel_integration_demo(void)
 | tick 一直不出现 | 检查 `ECFG`/`CRMD.IE` 两层开关是否都打开 |
 | tick 刷屏停不下来 | 检查 `TICLR` 清源是否被误删（对照 Task8） |
 | Task6 里 `while (irq_ticks() < 3)` 循环一次都不进 | `irq_ticks()` 全程累计，单元一已经跑到 5；要用"启动时的基准值 + N"，见 Task6 提示 |
+| 编译报 `timer_pause`/`timer_resume` 隐式声明警告或链接错误 | Task3.7 里 `include/irq.h` 忘了加声明，或 `kernel/main.c` 忘了 `#include "irq.h"` |
 | 退不出 QEMU | `Ctrl+a`，再按 `x` |

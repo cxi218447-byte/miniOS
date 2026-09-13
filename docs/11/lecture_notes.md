@@ -30,13 +30,13 @@
 3. 理解异常与中断**共享同一个 EENTRY 入口**，用 `ESTAT.Ecode==0` 区分中断类。
 4. 解释为什么中断入口要比第 9 次课的 `exception_entry` 保存更多寄存器。
 5. 跑通一个真实的周期性定时器中断 demo，能读懂 tick 计数输出。
-6. **亲手写代码**实现 `timer_read_remaining()`（读 TVAL）与变速 tick，验证"周期模式自动重装"不是只停留在口头理解上。
+6. **亲手写代码**实现 `timer_read_remaining()`（读 TVAL）、三档变速 tick、`timer_pause()`/`timer_resume()`，验证"周期模式自动重装"与"暂停不等于停止"不是只停留在口头理解上。
 
 **单元二（内核服务整理，第 3–4 学时）**
 
 7. 画出 miniOS 当前的内核服务地图（启动→输出→库函数→系统调用→异常/中断）。
 8. 能说明每个模块的输入/输出边界，以及"谁能直接碰硬件、谁只能调用接口"。
-9. **亲手写一个 `kernel_integration_demo()`**，把服务地图从"画出来的图"变成"真正跑起来的集成代码"，体会操作系统本质是服务集成+事件驱动模拟。
+9. **亲手写一个 `kernel_integration_demo()`**，把服务地图从"画出来的图"变成"真正跑起来的集成代码"（含系统调用防御性测试、定时器暂停/恢复），体会操作系统本质是服务集成+事件驱动模拟。
 10. 为第 12 次课的板级迁移与综合展示准备一份可复用的架构图素材与代码起点。
 
 ## 3. 课前准备
@@ -128,7 +128,11 @@ exception_entry:
 
 这不是"中断专属的新入口"，而是把第 9 次课的入口**原地升级**——因为硬件本来就共享一个 EENTRY。
 
-### 4.5 实测数据（供课堂对照）
+### 4.5 暂停 ≠ 停止：`timer_pause`/`timer_resume` 与 `timer_stop` 的区别
+
+`timer_stop()` 只关分源开关（`ecfg_disable_timer_line()`），`TCFG` 的配置(周期倒数)其实原封不动地留在硬件里，只是不再触发中断——严格说它的效果本来就是"暂停"，只是接口起名叫 `stop`，容易让人误以为定时器被彻底清空了。Task3.7 要求学生把这层语义显式拆开，写出 `timer_pause()`/`timer_resume()`：函数体和 `timer_stop()` 几乎一样（同样是开/关 `ECFG` 对应位），但接口名字要让调用者一眼看出"这个中断以后还会不会回来"——这是"接口语义比实现更重要"的一次具体练习。
+
+### 4.6 实测数据（供课堂对照）
 
 ```text
 timer_init: periodic timer interrupt enabled
@@ -175,7 +179,7 @@ boot/start.S _start
 
 ### 5.4 集成模拟：从"画地图"到"跑代码"
 
-单纯画服务地图、回答边界问答，容易停留在"我知道各模块是什么"，却没有亲手体会"操作系统就是把这些服务模块串起来、靠事件驱动往前推进"这件事。所以本单元要求学生写一个 `kernel_integration_demo()`，在同一次运行里真正依次调用：库函数（`memset`/`memcpy`/`strlen`）→系统调用（`syscall_dispatch`）→同步异常（`break`）→异步中断（复用单元一的定时器），最后打印集成验收串。
+单纯画服务地图、回答边界问答，容易停留在"我知道各模块是什么"，却没有亲手体会"操作系统就是把这些服务模块串起来、靠事件驱动往前推进"这件事。所以本单元要求学生写一个 `kernel_integration_demo()`，在同一次运行里真正依次调用：库函数（`memset`/`memcpy`/`strlen`）→系统调用正常路径 + 非法 fd 防御性测试（`syscall_dispatch`）→同步异常（`break`）→异步中断 + 暂停/恢复（复用单元一 Task3.7 的 `timer_pause`/`timer_resume`），最后打印集成验收串。防御性测试和暂停/恢复这两步不是为了凑代码量，而是让学生亲手验证"接口边界真的挡住了非法输入""暂停接口真的没有清空状态"，比单纯调用一遍更接近真实内核代码会做的事。
 
 这个函数本身就是"迷你操作系统全流程"的一次真实模拟：启动把它调起来，中间既有主动调用（库函数/系统调用/异常都是当前指令流主动触发），也有被动响应（中断由硬件异步打断、软件自动接住），学生写完这一遍，比看十遍服务地图更能建立"OS 是集成起来的服务 + 事件驱动"的直觉。详见 `lab.md` Task6。
 
@@ -186,7 +190,8 @@ boot/start.S _start
 3. （踩坑复现，选做）临时删掉 `timer_irq_clear()` 调用，观察不清中断源会发生什么。
 4. 共画服务地图（§5.1），学生上台补充连线。
 5. 教师现场写一遍 `timer_read_remaining()`（Task D）并 `make run`，让学生看到 TVAL 被重新装载，再放手让学生自己实现。
-6. 教师现场跑一遍写好的 `kernel_integration_demo()`（Task G），对照 §5.4 逐段讲解"这一步对应哪个服务、主动调用还是被动响应"，再放手让学生照着骨架自己实现。
+6. 教师现场写一遍 `timer_pause()`/`timer_resume()`（Task F），强调和 `timer_stop()` 函数体几乎一样、但接口语义不同（对照 §4.5）。
+7. 教师现场跑一遍写好的 `kernel_integration_demo()`（Task H），对照 §5.4 逐段讲解"这一步对应哪个服务、主动调用还是被动响应"，重点点出非法 fd 测试和暂停/恢复这两步在验证什么，再放手让学生照着骨架自己实现。
 
 ## 7. 实验实践
 
@@ -198,17 +203,19 @@ boot/start.S _start
 
 **Task D（必做，写代码）**　实现 `timer_read_remaining()`（读 TVAL），在 `irq_dispatch` 里打印出来，验证周期模式自动重装（对应 lab.md Task3.5）。
 
-**Task E（必做，写代码）**　实现变速 tick：`irq_ticks()==2` 时重新调用 `timer_init()` 换一个更小的 `TIMER_COUNT`（对应 lab.md Task3.6）。
+**Task E（必做，写代码）**　实现三档变速 tick：用速度表在 `irq_ticks()==2/4` 时重新调用 `timer_init()` 切档（对应 lab.md Task3.6）。
 
-**Task F**　画出 §5.1 的服务地图，并回答 §5.2 的四个问题。
+**Task F（必做，写代码）**　实现 `timer_pause()`/`timer_resume()`，书面说明它们与 `timer_stop()`/`timer_init()` 的语义差异（对应 lab.md Task3.7，见 §4.5）。
 
-**Task G（必做，写代码）**　实现 `kernel_integration_demo()`，把库函数/系统调用/异常/中断真正串联跑通一遍（对应 lab.md Task6，见 §5.4）。
+**Task G**　画出 §5.1 的服务地图，并回答 §5.2 的四个问题。
 
-**Task H（选做）**　按 §6.3 复现"不清中断源"的故障，记录现象并解释原因（对应 lab.md Task8）。
+**Task H（必做，写代码）**　实现 `kernel_integration_demo()`，把库函数/系统调用（含非法 fd 防御性测试）/异常/中断（含暂停/恢复）真正串联跑通一遍（对应 lab.md Task6，见 §5.4）。
+
+**Task I（选做）**　按 §6.3 复现"不清中断源"的故障，记录现象并解释原因（对应 lab.md Task8）。
 
 ## 8. AI 共学
 
-允许协助核对 CSR 位定义、整理服务地图、排查 `kernel_integration_demo()` 的编译报错；`TIMER_COUNT` 调参、TVAL 读数、变速 tick、集成 demo 与故障复现的真实输出必须来自本机 `make run`，不得编造。
+允许协助核对 CSR 位定义、整理服务地图、排查 `kernel_integration_demo()`/`timer_pause`/`timer_resume` 的编译报错；`TIMER_COUNT` 调参、TVAL 读数、三档变速 tick、暂停/恢复、非法 fd 防御性测试与故障复现的真实输出必须来自本机 `make run`，不得编造。
 
 ## 9. 思考与拓展
 
@@ -224,5 +231,6 @@ boot/start.S _start
 共享入口：Ecode==0 → 中断(era不变) / Ecode!=0 → 异常(era+4)
 中断入口更重：可能打断任何代码，必须存全部 caller-saved 寄存器
 服务地图：boot → 输出/库/syscall/异常中断，边界在"谁碰硬件"
-kernel_integration_demo：库函数→系统调用→同步异常→异步中断，一次真跑通 = OS集成+事件驱动
+timer_pause/resume ≠ timer_stop/init：暂停保留状态，停止/重启不保留
+kernel_integration_demo：库函数→系统调用(含防御性测试)→同步异常→异步中断(含暂停/恢复)，一次真跑通 = OS集成+事件驱动
 ```
