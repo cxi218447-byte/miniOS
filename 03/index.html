@@ -30,6 +30,13 @@
         <span>模式一：输入十进制数，逐步看原码→反码→补码的转换动画（含逐位取反、末位加 1 进位动画）。
           模式二：输入两个操作数，逐位相加并用两条规则交叉判断是否溢出，结果按补码解码回十进制。</span>
       </a>
+
+      <a class="card" href="cond-select-min/">
+        <small>交互 · 可逐步 / 自动播放</small>
+        <strong>条件选择（min）slt / maskeqz / masknez / or</strong>
+        <span>教材例 3.8 <code>a=(b&lt;c)?b:c</code>：逐条指令高亮 + 寄存器 r4/r5/r12/r6 实时取值 + 完整执行过程表，
+          可输入任意 b、c（含课件"自推一表"练习 b=5,c=3），看懂 LoongArch 分支消除（branchless select）的套路。</span>
+      </a>
     </section>
 
     <p class="note">建议先看 <code>docs/03/lecture_notes.md</code> §5.7 / §5.7.5（原码反码补码与溢出的课堂口径），

@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 3 次课：条件选择（min）slt / maskeqz / masknez / or 动画演示</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08111f;
+      --panel: #111e31;
+      --panel-2: #172943;
+      --text: #f4f7fb;
+      --muted: #b9c8dc;
+      --blue: #61b7ff;
+      --green: #63e6a5;
+      --yellow: #ffd166;
+      --red: #ff7b89;
+      --purple: #c9a6ff;
+      --border: #36506e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #17304e 0, var(--bg) 50%);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+      font-size: 32px;      /* >= 24pt 基线字号 */
+      line-height: 1.5;
+    }
+    button, select, input { font: inherit; }
+    .page { max-width: 1600px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0; font-size: clamp(38px, 4vw, 58px); }
+    h2 { margin: 0; font-size: 36px; }
+    h3 { margin: 0 0 10px; font-size: 32px; }
+    .subtitle { margin: 8px 0 22px; color: var(--muted); font-size: 32px; }
+    .toolbar, .controls, .stepnav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      margin: 16px 0;
+    }
+    label { color: var(--muted); font-size: 32px; }
+    button, input[type=number] {
+      min-height: 60px;
+      padding: 8px 20px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel-2);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 32px;
+    }
+    input[type=number] { width: 160px; cursor: text; }
+    button:hover, button:focus-visible, input:focus-visible {
+      border-color: var(--blue);
+      outline: 3px solid rgb(97 183 255 / 30%);
+    }
+    button:disabled { opacity: .42; cursor: not-allowed; }
+    .panel {
+      background: rgb(17 30 49 / 94%);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 18px 60px rgb(0 0 0 / 25%);
+    }
+    [hidden] { display: none !important; }
+
+    /* 汇编代码 */
+    .asmcode {
+      background: #0d192a;
+      border: 2px solid var(--border);
+      border-radius: 13px;
+      padding: 16px 20px;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 30px;
+      line-height: 1.9;
+    }
+    .asmcode .comment { color: var(--muted); }
+    .asm-line { display: block; padding: 2px 8px; border-radius: 6px; transition: background .3s, color .3s; }
+    .asm-line.active { background: #155a8b; color: var(--text); box-shadow: 0 0 0 2px var(--blue); }
+    .asm-line.done { color: var(--green); }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(360px, .9fr);
+      gap: 20px;
+      align-items: start;
+      margin-top: 18px;
+    }
+    .stage-panel, .explain {
+      border: 2px solid var(--border);
+      border-radius: 13px;
+      padding: 18px;
+      background: #0d192a;
+    }
+    .explain { color: var(--muted); min-height: 260px; }
+    .explain b { color: var(--text); }
+    .explain .warn { color: var(--yellow); }
+    .steplabel { color: var(--yellow); font-weight: bold; }
+
+    /* 寄存器卡片 */
+    .regrow { display: flex; gap: 16px; flex-wrap: wrap; margin: 4px 0 20px; }
+    .regcard {
+      flex: 1 1 200px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      background: var(--panel-2);
+      transition: background .35s, border-color .35s, transform .35s;
+    }
+    .regcard .name { color: var(--blue); font-size: 30px; }
+    .regcard .alias { color: var(--muted); font-size: 26px; }
+    .regcard .value { font-size: 38px; font-weight: bold; margin-top: 4px; }
+    .regcard.unknown .value { color: var(--muted); }
+    .regcard.active { background: #155a8b; border-color: var(--blue); transform: scale(1.05); }
+    .regcard.done { background: #123a29; border-color: var(--green); }
+
+    /* 执行过程表 */
+    table.trace { border-collapse: collapse; width: 100%; font-size: 28px; }
+    table.trace th, table.trace td {
+      border: 2px solid var(--border);
+      padding: 8px 10px;
+      text-align: center;
+    }
+    table.trace th { background: var(--panel-2); color: var(--blue); }
+    table.trace td.pending { color: var(--muted); }
+    table.trace tr.active td { background: #155a8b; color: var(--text); }
+    table.trace tr.done td { background: #0d1f18; }
+    table.trace td.changed { color: var(--yellow); font-weight: bold; }
+
+    .legend-note { color: var(--muted); font-size: 30px; margin-top: 8px; }
+    footer.takeaways {
+      margin-top: 26px; padding: 20px; border-radius: 14px;
+      background: #0d192a; border: 2px solid var(--border); color: var(--muted);
+      font-size: 30px; line-height: 1.7;
+    }
+    footer.takeaways b { color: var(--yellow); }
+    .err { color: var(--red); font-size: 30px; }
+
+    table.semtable { border-collapse: collapse; width: 100%; font-size: 28px; margin-top: 10px; }
+    table.semtable th, table.semtable td {
+      border: 2px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    table.semtable th { background: var(--panel-2); color: var(--blue); }
+  </style>
+</head>
+<body>
+<div class="page">
+  <p style="margin:0 0 8px;"><a href="../" style="color:var(--blue);font-weight:700;text-decoration:none;font-size:28px;">‹ 返回第 3 次课</a></p>
+  <header>
+    <h1>条件选择（min）：slt / maskeqz / masknez / or</h1>
+    <div class="subtitle">第 3 次课 · §3.1 逻辑运算动画演示 &nbsp;|&nbsp; 配合讲义例 3.8：<code>a = (b&lt;c) ? b : c</code></div>
+  </header>
+
+  <div class="controls panel">
+    <label>b（r4）：</label><input type="number" id="in-b" value="3">
+    <label>c（r5）：</label><input type="number" id="in-c" value="5">
+    <button id="btn-build">生成 / 重新开始</button>
+    <button id="btn-preset-slide">调入课件例（b=3, c=5）</button>
+    <button id="btn-preset-task">调入自推任务（b=5, c=3）</button>
+    <span id="range-hint" class="legend-note"></span>
+  </div>
+
+  <div class="panel" style="margin-top:18px;">
+    <h3>指令序列</h3>
+    <pre class="asmcode" id="asm-block"><span class="comment"># a = (b&lt;c) ? b : c</span>
+<span class="comment"># r4 = b, r5 = c, r6 = a</span><span class="asm-line" id="asm-0">slt      r12, r4, r5</span><span class="asm-line" id="asm-1">maskeqz  r4,  r4, r12</span><span class="asm-line" id="asm-2">masknez  r12, r5, r12</span><span class="asm-line" id="asm-3">or       r6,  r4, r12</span></pre>
+  </div>
+
+  <div class="workspace">
+    <div class="stage-panel">
+      <div class="regrow" id="regrow"></div>
+
+      <table class="trace" id="trace-table">
+        <thead>
+          <tr><th>步</th><th>指令</th><th>计算 / 含义</th><th>r4</th><th>r5</th><th>r12</th><th>r6</th></tr>
+        </thead>
+        <tbody id="trace-body"></tbody>
+      </table>
+
+      <div class="stepnav">
+        <button id="btn-prev">◀ 上一步</button>
+        <span class="steplabel" id="steplabel">步骤 1 / 5</span>
+        <button id="btn-next">下一步 ▶</button>
+        <button id="btn-auto">▶ 自动播放</button>
+        <button id="btn-replay">↻ 重播当前步骤</button>
+      </div>
+    </div>
+    <aside class="explain" id="explain"></aside>
+  </div>
+
+  <div class="panel" style="margin-top:18px;">
+    <h3>指令语义表</h3>
+    <table class="semtable">
+      <thead><tr><th>指令</th><th>语义</th></tr></thead>
+      <tbody>
+        <tr><td><code>slt rd, rj, rk</code></td><td>有符号小于比较，<code>rd = (rj &lt; rk) ? 1 : 0</code></td></tr>
+        <tr><td><code>maskeqz rd, rj, rk</code></td><td>条件赋值，<code>rd = (rk == 0) ? 0 : rj</code></td></tr>
+        <tr><td><code>masknez rd, rj, rk</code></td><td>条件赋值，<code>rd = (rk != 0) ? 0 : rj</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer class="takeaways">
+    <b>板书要点：</b><br>
+    这四条指令是 LoongArch 上常用的“<b>分支消除</b>”（branchless select）写法：用 <code>slt</code> 把比较结果变成 0/1 的“条件位”，
+    再用一对 <code>maskeqz</code> / <code>masknez</code> 把 b、c 中“不该选的那个”清成全 0，最后用 <code>or</code> 把两路合并——
+    因为任意时刻两路中恰好一路是 0，<code>or</code> 等价于“取那个非零的”，比 <code>beq/bne</code> 分支跳转更省流水线开销。<br>
+    该写法对正负数都成立：<code>maskeqz/masknez</code> 清零的是寄存器的<b>全部位</b>，不依赖数值符号。<br>
+    自推练习（课件第45页）：把 b、c 换成 5、3 重新跑一遍，观察哪一步 r4 变 0、哪一步 r12 变 0，理解“选择权”在两条指令间的转移。
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const inB = document.getElementById('in-b');
+  const inC = document.getElementById('in-c');
+  const rangeHint = document.getElementById('range-hint');
+  const regrow = document.getElementById('regrow');
+  const traceBody = document.getElementById('trace-body');
+  const stepLabel = document.getElementById('steplabel');
+  const explain = document.getElementById('explain');
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+  const btnAuto = document.getElementById('btn-auto');
+  const btnReplay = document.getElementById('btn-replay');
+
+  const REG_META = [
+    { key: 'r4', label: 'r4', alias: '(b)' },
+    { key: 'r5', label: 'r5', alias: '(c)' },
+    { key: 'r12', label: 'r12', alias: '(条件位)' },
+    { key: 'r6', label: 'r6', alias: '(a)' },
+  ];
+
+  let steps = [];      // 每一步的完整状态与说明
+  let cur = 0;          // 当前步骤索引
+  let autoTimer = null;
+
+  function buildSteps(b, c) {
+    const U = '?';
+    const s = [];
+
+    // 步 0：入口
+    s.push({
+      asmIndex: -1,
+      instr: '入口',
+      meaning: 'b=' + b + ', c=' + c,
+      regs: { r4: b, r5: c, r12: U, r6: U },
+      changed: [],
+      explain: '① 前：r4(b)=' + b + '，r5(c)=' + c + '。r12、r6 尚未赋值。<br>' +
+                '接下来用 slt / maskeqz / masknez / or 四条指令，<b>不用分支跳转</b>就算出 a = (b&lt;c) ? b : c。'
+    });
+
+    // 步 1：slt r12, r4, r5
+    const lt = b < c ? 1 : 0;
+    s.push({
+      asmIndex: 0,
+      instr: 'slt      r12, r4, r5',
+      meaning: b + (lt ? '<' : '>=') + c + ' → ' + lt,
+      regs: { r4: b, r5: c, r12: lt, r6: U },
+      changed: ['r12'],
+      explain: '② <code>slt r12, r4, r5</code>：比较 r4 &lt; r5，即 ' + b + (lt ? ' &lt; ' : ' ≥ ') + c +
+                '，结果 r12 = <b>' + lt + '</b>。<br>r12 就是“条件位”：1 表示 b&lt;c（应选 b），0 表示 b≥c（应选 c）。'
+    });
+
+    // 步 2：maskeqz r4, r4, r12
+    const r4after = lt === 0 ? 0 : b;
+    s.push({
+      asmIndex: 1,
+      instr: 'maskeqz  r4,  r4, r12',
+      meaning: 'r12' + (lt === 0 ? '==0 → r4=0' : '≠0 → r4 保持 ' + b),
+      regs: { r4: r4after, r5: c, r12: lt, r6: U },
+      changed: ['r4'],
+      explain: '③ <code>maskeqz r4, r4, r12</code>：若 r12==0（不该选 b），把 r4 清成 0；否则 r4 不变。<br>' +
+                (lt === 0
+                  ? '本例 r12=0 → r4 被清零（b 这一路被淘汰）。'
+                  : '本例 r12≠0 → r4 保持 ' + b + '（b 这一路继续保留，等待被选中）。')
+    });
+
+    // 步 3：masknez r12, r5, r12
+    const r12after = lt !== 0 ? 0 : c;
+    s.push({
+      asmIndex: 2,
+      instr: 'masknez  r12, r5, r12',
+      meaning: 'r12(旧)' + (lt !== 0 ? '≠0 → r12=0' : '==0 → r12=r5=' + c),
+      regs: { r4: r4after, r5: c, r12: r12after, r6: U },
+      changed: ['r12'],
+      explain: '④ <code>masknez r12, r5, r12</code>：若旧 r12≠0（b 已经胜出），把 r12 改写成 0；否则 r12 = r5(c)。<br>' +
+                (lt !== 0
+                  ? '本例旧 r12≠0 → r12 变 0（c 这一路被淘汰）。'
+                  : '本例旧 r12==0 → r12 变成 ' + c + '（c 这一路被选中）。')
+    });
+
+    // 步 4：or r6, r4, r12
+    const r6after = r4after | r12after;
+    s.push({
+      asmIndex: 3,
+      instr: 'or       r6,  r4, r12',
+      meaning: r4after + ' | ' + r12after + ' = ' + r6after,
+      regs: { r4: r4after, r5: c, r12: r12after, r6: r6after },
+      changed: ['r6'],
+      explain: '⑤ <code>or r6, r4, r12</code>：此刻 r4、r12 中恰好一个是 0，另一个是被选中的值，按位或直接“透传”非零那路。<br>' +
+                'r6 = ' + r4after + ' | ' + r12after + ' = <b>' + r6after + '</b>，与 Math.min(' + b + ', ' + c + ') = ' +
+                Math.min(b, c) + ' 一致 → a = ' + r6after + '。' +
+                (r6after === Math.min(b, c) ? '' : '<br><span class="warn">⚠ 与预期 min 不符，请检查输入。</span>')
+    });
+
+    return s;
+  }
+
+  function fmt(v) { return v === '?' ? '?' : String(v); }
+
+  function renderRegs(stepIdx) {
+    const st = steps[stepIdx];
+    regrow.innerHTML = '';
+    REG_META.forEach((m) => {
+      const card = document.createElement('div');
+      card.className = 'regcard';
+      const val = st.regs[m.key];
+      if (val === '?') card.classList.add('unknown');
+      if (st.changed.includes(m.key)) card.classList.add('active');
+      else if (val !== '?' && stepIdx > 0) card.classList.add('done');
+      card.innerHTML =
+        '<div class="name">' + m.label + ' <span class="alias">' + m.alias + '</span></div>' +
+        '<div class="value">' + fmt(val) + '</div>';
+      regrow.appendChild(card);
+    });
+  }
+
+  function renderAsm(stepIdx) {
+    const st = steps[stepIdx];
+    for (let i = 0; i < 4; i++) {
+      const el = document.getElementById('asm-' + i);
+      el.classList.remove('active', 'done');
+      if (i === st.asmIndex) el.classList.add('active');
+      else if (i < st.asmIndex) el.classList.add('done');
+    }
+  }
+
+  function renderTrace(stepIdx) {
+    traceBody.innerHTML = '';
+    for (let i = 0; i < steps.length; i++) {
+      const st = steps[i];
+      const tr = document.createElement('tr');
+      if (i === stepIdx) tr.classList.add('active');
+      else if (i < stepIdx) tr.classList.add('done');
+
+      const cells = [String(i), st.instr, st.meaning];
+      const regCells = REG_META.map((m) => fmt(st.regs[m.key]));
+
+      if (i <= stepIdx) {
+        cells.push(...regCells);
+      } else {
+        cells.push('?', '?', '?', '?');
+      }
+
+      cells.forEach((text, ci) => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        if (i <= stepIdx && i > 0 && ci >= 3) {
+          const key = REG_META[ci - 3].key;
+          if (st.changed.includes(key)) td.classList.add('changed');
+        }
+        if (i > stepIdx) td.classList.add('pending');
+        tr.appendChild(td);
+      });
+      traceBody.appendChild(tr);
+    }
+  }
+
+  function render() {
+    const st = steps[cur];
+    stepLabel.textContent = '步骤 ' + (cur + 1) + ' / ' + steps.length;
+    renderRegs(cur);
+    renderAsm(cur);
+    renderTrace(cur);
+    explain.innerHTML = st.explain;
+    btnPrev.disabled = cur === 0;
+    btnNext.disabled = cur === steps.length - 1;
+  }
+
+  function build() {
+    const b = parseInt(inB.value, 10);
+    const c = parseInt(inC.value, 10);
+    if (Number.isNaN(b) || Number.isNaN(c)) {
+      rangeHint.innerHTML = '<span class="err">请输入合法整数</span>';
+      return;
+    }
+    rangeHint.textContent = '当前：b=' + b + ', c=' + c + '，预期 min = ' + Math.min(b, c);
+    steps = buildSteps(b, c);
+    cur = 0;
+    stopAuto();
+    render();
+  }
+
+  function stopAuto() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; btnAuto.textContent = '▶ 自动播放'; }
+  }
+
+  btnPrev.addEventListener('click', () => { stopAuto(); if (cur > 0) { cur--; render(); } });
+  btnNext.addEventListener('click', () => { stopAuto(); if (cur < steps.length - 1) { cur++; render(); } });
+  btnReplay.addEventListener('click', () => { stopAuto(); render(); });
+  btnAuto.addEventListener('click', () => {
+    if (autoTimer) { stopAuto(); return; }
+    btnAuto.textContent = '⏸ 暂停自动播放';
+    autoTimer = setInterval(() => {
+      if (cur >= steps.length - 1) { stopAuto(); return; }
+      cur++; render();
+    }, 1600);
+  });
+
+  document.getElementById('btn-build').addEventListener('click', build);
+  document.getElementById('btn-preset-slide').addEventListener('click', () => {
+    inB.value = 3; inC.value = 5; build();
+  });
+  document.getElementById('btn-preset-task').addEventListener('click', () => {
+    inB.value = 5; inC.value = 3; build();
+  });
+
+  build();
+})();
+</script>
+</body>
+</html>

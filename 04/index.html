@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 4 次课动画 - LoongArch miniOS</title>
+  <link rel="stylesheet" href="../assets/shared.css">
+</head>
+<body>
+  <main class="site-shell">
+    <nav class="topbar" aria-label="站点导航">
+      <p class="brand">第 4 次课：访存指令与内存数据组织</p>
+      <a class="home-link" href="../">返回首页</a>
+    </nav>
+
+    <section class="hero">
+      <p class="eyebrow">第 4 次课 · tag 04-load-store</p>
+      <h1>课堂演示动画</h1>
+      <p class="lead">这次课的核心是「先算地址、再动内容」这两步怎么分开理解：有效地址怎么算、
+        普通 <code>ld/st</code> 按宽度加载/存储时怎么做符号扩展或截断；以及为什么多核环境下光靠
+        普通读改写不安全，需要 <code>ll/sc</code> 配合 <code>dbar</code> 保证顺序。
+        下面两个动画分别对应这两块内容，都可以逐步或自动播放。</p>
+    </section>
+
+    <section class="grid" aria-label="第 4 次课动画列表">
+      <a class="card" href="addressing-modes/">
+        <small>交互 · 三种寻址方式</small>
+        <strong>普通访存指令：三种寻址方式的访存效果</strong>
+        <span>把每条访存指令拆成「算地址」「读/写内容」两步演示，对比寄存器间接、偏移量寻址等
+          寻址方式下有效地址如何计算，以及加载扩展 / 存储截断的效果。</span>
+      </a>
+
+      <a class="card" href="llsc-dbar/">
+        <small>交互 · 可播放</small>
+        <strong>LL/SC 与 DBAR 动画演示</strong>
+        <span>演示 <code>ll.w/sc.w</code> 原子读改写的执行流程，以及 <code>dbar</code> 数据栅障如何
+          保证访存顺序；用于理解教材中边界检查访存与多核同步的纸面推演部分。</span>
+      </a>
+    </section>
+
+    <p class="note">建议先读 <code>docs/04/lecture_notes.md</code> 关于有效地址与加载扩展/存储截断的课堂口径，
+      再用这两个动画自己走一遍执行过程，最后对照 <code>docs/04/lab.md</code> 做实验任务。</p>
+  </main>
+</body>
+</html>

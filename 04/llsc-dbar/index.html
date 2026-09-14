@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 4 次课：LL/SC 与 DBAR 动画演示</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08111f;
+      --panel: #111e31;
+      --panel-2: #172943;
+      --text: #f4f7fb;
+      --muted: #b9c8dc;
+      --blue: #61b7ff;
+      --green: #63e6a5;
+      --yellow: #ffd166;
+      --red: #ff7b89;
+      --border: #36506e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #17304e 0, var(--bg) 50%);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+      font-size: 24px;
+      line-height: 1.5;
+    }
+    button, select { font: inherit; }
+    .page { max-width: 1540px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0; font-size: clamp(34px, 4vw, 56px); }
+    h2 { margin: 0; font-size: 34px; }
+    h3 { margin: 0 0 10px; font-size: 27px; }
+    .subtitle { margin: 8px 0 22px; color: var(--muted); }
+    .toolbar, .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin: 16px 0;
+    }
+    button, select {
+      min-height: 54px;
+      padding: 8px 18px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel-2);
+      color: var(--text);
+      cursor: pointer;
+    }
+    button:hover, button:focus-visible, select:focus-visible {
+      border-color: var(--blue);
+      outline: 3px solid rgb(97 183 255 / 30%);
+    }
+    button.active { background: #155a8b; border-color: var(--blue); }
+    button:disabled { opacity: .42; cursor: not-allowed; }
+    .panel {
+      background: rgb(17 30 49 / 94%);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 18px 60px rgb(0 0 0 / 25%);
+    }
+    [hidden] { display: none !important; }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(330px, .8fr);
+      gap: 18px;
+    }
+    .lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .lane, .memory, .explain, .legend {
+      border: 2px solid var(--border);
+      border-radius: 13px;
+      padding: 16px;
+      background: #0d192a;
+    }
+    .lane.active { border-color: var(--yellow); box-shadow: 0 0 0 4px rgb(255 209 102 / 12%); }
+    .lane h3 { color: var(--blue); }
+    .instruction {
+      margin: 7px 0;
+      padding: 8px 10px;
+      border-left: 5px solid transparent;
+      border-radius: 7px;
+      color: var(--muted);
+      font-family: Consolas, monospace;
+      font-size: 22px;
+      white-space: pre-wrap;
+    }
+    .instruction.current {
+      color: #111827;
+      background: var(--yellow);
+      border-left-color: #fff;
+      font-weight: 700;
+    }
+    .state-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+    .state-card { padding: 12px; border-radius: 10px; background: var(--panel-2); }
+    .state-card strong { color: var(--green); }
+    .state-card.bad strong { color: var(--red); }
+    .value { font-size: 34px; font-weight: 800; color: var(--yellow); }
+    .side { display: grid; gap: 16px; align-content: start; }
+    .step-title { color: var(--yellow); font-weight: 800; font-size: 28px; }
+    .triple { display: grid; gap: 10px; margin-top: 12px; }
+    .triple div { padding: 10px 12px; background: var(--panel-2); border-radius: 9px; }
+    .triple b { display: inline-block; min-width: 120px; color: var(--blue); }
+    .progress { color: var(--muted); margin-left: auto; }
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .flow-box { min-height: 130px; padding: 14px; border: 2px solid var(--border); border-radius: 12px; background: #0d192a; }
+    .flow-box.active { border-color: var(--yellow); }
+    .arrow { color: var(--blue); font-size: 40px; font-weight: bold; }
+    .buffer-list { margin: 8px 0 0; padding-left: 24px; color: var(--muted); }
+    .result-good { color: var(--green); font-weight: 800; }
+    .result-bad { color: var(--red); font-weight: 800; }
+    .concept { margin-top: 16px; padding: 12px 16px; border-left: 6px solid var(--blue); background: #10243b; }
+    .legend { margin-top: 16px; color: var(--muted); }
+    kbd { padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; background: #07101d; }
+    @media (max-width: 1000px) {
+      .workspace, .lanes { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); justify-self: center; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>LL/SC 与 DBAR 动画演示</h1>
+    <p class="subtitle">第 4 次课 · 单步观察助记符、操作数与状态变化</p>
+
+    <nav class="toolbar" aria-label="演示主题">
+      <button id="llscTab" class="active" type="button">LL/SC 原子操作</button>
+      <button id="dbarTab" type="button">DBAR 访存顺序</button>
+      <label for="scenarioSelect">场景：</label>
+      <select id="scenarioSelect" aria-label="选择动画场景">
+        <option value="llsc-success">无冲突：SC 成功</option>
+        <option value="llsc-conflict">发生冲突：SC 失败并重试</option>
+        <option value="dbar-reordered">无 DBAR：可能观察到乱序</option>
+        <option value="dbar-ordered">加入 DBAR：按顺序可见</option>
+      </select>
+    </nav>
+
+    <section id="llscPanel" class="panel" aria-labelledby="llscHeading">
+      <h2 id="llscHeading">LL/SC：冲突不是静默覆盖，而是失败重试</h2>
+      <div class="workspace">
+        <div>
+          <div class="lanes">
+            <article id="core0Lane" class="lane">
+              <h3>处理器核 0</h3>
+              <div class="instruction" data-line="c0-ll">ll.w   $t0, $a0, 0</div>
+              <div class="instruction" data-line="c0-add">addi.w $t1, $t0, 1</div>
+              <div class="instruction" data-line="c0-sc">sc.w   $t1, $a0, 0</div>
+              <div class="instruction" data-line="c0-branch">beqz   $t1, retry</div>
+            </article>
+            <article id="core1Lane" class="lane">
+              <h3>处理器核 1 / 外部写入者</h3>
+              <div class="instruction" data-line="c1-ll">ll.w   $t2, $a0, 0</div>
+              <div class="instruction" data-line="c1-add">addi.w $t3, $t2, 1</div>
+              <div class="instruction" data-line="c1-sc">sc.w   $t3, $a0, 0</div>
+            </article>
+          </div>
+          <div class="state-grid">
+            <div class="state-card"><div>共享内存 a</div><div id="memoryValue" class="value">3</div></div>
+            <div id="llbitCard" class="state-card"><div>核 0 的链接状态</div><strong id="llbitValue">未建立</strong></div>
+            <div class="state-card"><div>核 0 寄存器</div><strong id="core0Regs">$t0=—，$t1=—</strong></div>
+            <div class="state-card"><div>核 1 寄存器</div><strong id="core1Regs">$t2=—，$t3=—</strong></div>
+          </div>
+        </div>
+        <aside class="side">
+          <div class="explain" aria-live="polite">
+            <div id="stepTitle" class="step-title">准备开始</div>
+            <div class="triple">
+              <div><b>助记符</b><span id="mnemonicField">—</span></div>
+              <div><b>操作数</b><span id="operandsField">—</span></div>
+              <div><b>状态变化</b><span id="stateChangeField">选择场景后逐步播放。</span></div>
+            </div>
+          </div>
+          <div class="concept"><strong>核心：</strong>LL 建立监视；SC 只有在链接仍有效时才写回，并用寄存器报告成功或失败。</div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="dbarPanel" class="panel" aria-labelledby="dbarHeading" hidden>
+      <h2 id="dbarHeading">DBAR：约束其他观察者看到的数据访存顺序</h2>
+      <div class="flow">
+        <article id="writerBox" class="flow-box">
+          <h3>写入方</h3>
+          <div id="writerAction">等待</div>
+          <ul id="writerBuffer" class="buffer-list"><li>写缓冲为空</li></ul>
+        </article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article id="globalBox" class="flow-box">
+          <h3>全局可见内存</h3>
+          <div>data = <strong id="dataValue">旧数据</strong></div>
+          <div>tag = <strong id="tagValue">0</strong></div>
+        </article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article id="readerBox" class="flow-box">
+          <h3>读取方</h3>
+          <div id="readerAction">等待</div>
+          <div id="readerResult">尚未读取</div>
+        </article>
+      </div>
+      <div class="explain" aria-live="polite">
+        <div id="dbarStepTitle" class="step-title">准备开始</div>
+        <div class="triple">
+          <div><b>助记符</b><span id="dbarMnemonic">—</span></div>
+          <div><b>操作数</b><span id="dbarOperands">—</span></div>
+          <div><b>状态变化</b><span id="dbarState">选择场景后逐步播放。</span></div>
+        </div>
+      </div>
+      <div class="concept"><strong>核心：</strong>DBAR 管访存顺序，不把普通的“读—改—写”自动变成原子操作；原子性与顺序性必须分开理解。</div>
+    </section>
+
+    <div class="controls" aria-label="动画控制">
+      <button id="prevBtn" type="button">← 上一步</button>
+      <button id="nextBtn" type="button">下一步 →</button>
+      <button id="playBtn" type="button">▶ 自动播放</button>
+      <button id="resetBtn" type="button">↺ 重置</button>
+      <span id="progress" class="progress">0 / 0</span>
+    </div>
+
+    <div class="legend">键盘：<kbd>←</kbd>/<kbd>→</kbd> 单步，<kbd>空格</kbd> 播放或暂停，<kbd>R</kbd> 重置。页面完全离线运行。</div>
+  </main>
+
+  <script>
+    'use strict';
+
+    const scenarios = {
+      'llsc-success': {
+        topic: 'llsc', label: '无冲突：SC 成功',
+        steps: [
+          { title: '初始状态', mnemonic: '—', operands: '—', state: '共享计数器 a=3，核 0 尚未建立链接。', mem: 3, ll: '未建立', r0: '$t0=—，$t1=—' },
+          { title: 'LL：读取并监视', mnemonic: 'll.w', operands: '$t0, $a0, 0', state: '从地址 $a0+0 读取 3 到 $t0，同时建立对该地址的链接监视。', mem: 3, ll: '有效（LLbit=1）', r0: '$t0=3，$t1=—', line: 'c0-ll', core: 0 },
+          { title: '寄存器内计算', mnemonic: 'addi.w', operands: '$t1, $t0, 1', state: '$t1=4；内存仍为 3，链接仍有效。', mem: 3, ll: '有效（LLbit=1）', r0: '$t0=3，$t1=4', line: 'c0-add', core: 0 },
+          { title: 'SC：条件写回成功', mnemonic: 'sc.w', operands: '$t1, $a0, 0', state: '链接没有被破坏：把候选值 4 写入内存；随后 $t1=1 表示成功。', mem: 4, ll: '已清除', r0: '$t0=3，$t1=1', line: 'c0-sc', core: 0 },
+          { title: '无需重试', mnemonic: 'beqz', operands: '$t1, retry', state: '$t1=1，条件不成立，顺序执行下一条指令。', mem: 4, ll: '已清除', r0: '$t0=3，$t1=1', line: 'c0-branch', core: 0 }
+        ]
+      },
+      'llsc-conflict': {
+        topic: 'llsc', label: '发生冲突：SC 失败并重试',
+        steps: [
+          { title: '初始状态', mnemonic: '—', operands: '—', state: '共享计数器 a=3，两个核准备更新。', mem: 3, ll: '未建立', r0: '$t0=—，$t1=—', r1: '$t2=—，$t3=—' },
+          { title: '核 0 建立链接', mnemonic: 'll.w', operands: '$t0, $a0, 0', state: '核 0 读到 3，并监视共享地址。', mem: 3, ll: '有效（LLbit=1）', r0: '$t0=3，$t1=—', line: 'c0-ll', core: 0 },
+          { title: '核 0 计算候选值', mnemonic: 'addi.w', operands: '$t1, $t0, 1', state: '核 0 算出候选值 4，但尚未写内存。', mem: 3, ll: '有效（LLbit=1）', r0: '$t0=3，$t1=4', line: 'c0-add', core: 0 },
+          { title: '核 1 读取同一地址', mnemonic: 'll.w', operands: '$t2, $a0, 0', state: '核 1 也读到 3。', mem: 3, ll: '有效（LLbit=1）', r0: '$t0=3，$t1=4', r1: '$t2=3，$t3=—', line: 'c1-ll', core: 1 },
+          { title: '核 1 计算', mnemonic: 'addi.w', operands: '$t3, $t2, 1', state: '核 1 算出候选值 4。', mem: 3, ll: '有效（LLbit=1）', r0: '$t0=3，$t1=4', r1: '$t2=3，$t3=4', line: 'c1-add', core: 1 },
+          { title: '核 1 先写回', mnemonic: 'sc.w', operands: '$t3, $a0, 0', state: '核 1 成功把 4 写入共享内存；核 0 对该地址的链接因此失效。', mem: 4, ll: '失效（LLbit=0）', r0: '$t0=3，$t1=4', r1: '$t2=3，$t3=1', line: 'c1-sc', core: 1, bad: true },
+          { title: '核 0 的 SC 失败', mnemonic: 'sc.w', operands: '$t1, $a0, 0', state: '核 0 检测到链接失效，放弃旧候选值，不覆盖内存；$t1=0。', mem: 4, ll: '已清除', r0: '$t0=3，$t1=0', r1: '$t2=3，$t3=1', line: 'c0-sc', core: 0 },
+          { title: '失败后跳回', mnemonic: 'beqz', operands: '$t1, retry', state: '$t1=0，跳回 retry，必须重新读取最新值 4。', mem: 4, ll: '未建立', r0: '$t0=3，$t1=0', r1: '$t2=3，$t3=1', line: 'c0-branch', core: 0 },
+          { title: '重试成功', mnemonic: 'll.w → addi.w → sc.w', operands: '重新执行', state: '核 0 读到 4，算出 5 并成功写回；两次更新都保留下来。', mem: 5, ll: '已清除', r0: '$t0=4，$t1=1', r1: '$t2=3，$t3=1', core: 0 }
+        ]
+      },
+      'dbar-reordered': {
+        topic: 'dbar', label: '无 DBAR：可能观察到乱序',
+        steps: [
+          { title: '初始状态', mnemonic: '—', operands: '—', state: '全局内存中 data 是旧数据，tag=0。', data: '旧数据', tag: 0, writer: '等待', buffer: ['写缓冲为空'], reader: '等待', result: '尚未读取' },
+          { title: '程序先写 data', mnemonic: 'st.d', operands: '新数据, data', state: '写入先进入写缓冲，尚未对读取方全局可见。', data: '旧数据', tag: 0, writer: '执行 st.d 新数据, data', buffer: ['data ← 新数据（等待提交）'], reader: '等待', result: '尚未读取', box: 'writer' },
+          { title: 'tag 先变得可见', mnemonic: 'st.d', operands: '1, tag', state: '没有 DBAR 约束，tag 的写入可能先于 data 被其他核观察到。', data: '旧数据', tag: 1, writer: '执行 st.d 1, tag', buffer: ['data ← 新数据（仍等待）'], reader: '等待', result: '尚未读取', box: 'global' },
+          { title: '读取方看到就绪', mnemonic: 'ld.d', operands: '$t0, tag', state: '读取方读到 tag=1，以为数据已经准备好。', data: '旧数据', tag: 1, writer: '等待 data 提交', buffer: ['data ← 新数据（仍等待）'], reader: '读取 tag=1', result: '准备读取 data', box: 'reader' },
+          { title: '读取到旧数据', mnemonic: 'ld.d', operands: '$t1, data', state: 'data 尚未全局可见，读取方得到旧数据。这是顺序可见性问题。', data: '旧数据', tag: 1, writer: '等待 data 提交', buffer: ['data ← 新数据（仍等待）'], reader: '读取 data', result: '错误：读到旧数据', box: 'reader', bad: true }
+        ]
+      },
+      'dbar-ordered': {
+        topic: 'dbar', label: '加入 DBAR：按顺序可见',
+        steps: [
+          { title: '初始状态', mnemonic: '—', operands: '—', state: '全局内存中 data 是旧数据，tag=0。', data: '旧数据', tag: 0, writer: '等待', buffer: ['写缓冲为空'], reader: '等待', result: '尚未读取' },
+          { title: '写入新数据', mnemonic: 'st.d', operands: '新数据, data', state: 'data 写入可能先进入缓冲。', data: '旧数据', tag: 0, writer: '执行 st.d 新数据, data', buffer: ['data ← 新数据（等待提交）'], reader: '等待', result: '尚未读取', box: 'writer' },
+          { title: 'DBAR 等待前序访存', mnemonic: 'dbar', operands: '0', state: '栅障要求前面的 data 写入先完成，再允许后面的 tag 写入越过它。', data: '新数据', tag: 0, writer: '执行 dbar 0', buffer: ['写缓冲已排空'], reader: '等待', result: '尚未读取', box: 'global' },
+          { title: '发布就绪标志', mnemonic: 'st.d', operands: '1, tag', state: '此时 data 已经可见，随后 tag 才变为 1。', data: '新数据', tag: 1, writer: '执行 st.d 1, tag', buffer: ['写缓冲为空'], reader: '等待', result: '尚未读取', box: 'global' },
+          { title: '读取方观察 tag', mnemonic: 'ld.d', operands: '$t0, tag', state: '读取方读到 tag=1。', data: '新数据', tag: 1, writer: '完成', buffer: ['写缓冲为空'], reader: '读取 tag=1', result: '准备读取 data', box: 'reader' },
+          { title: '读取到新数据', mnemonic: 'ld.d', operands: '$t1, data', state: '由于写入方的发布顺序受到 DBAR 约束，读取方得到新数据。', data: '新数据', tag: 1, writer: '完成', buffer: ['写缓冲为空'], reader: '读取 data', result: '正确：读到新数据', box: 'reader', good: true }
+        ]
+      }
+    };
+
+    const $ = (id) => document.getElementById(id);
+    let topic = 'llsc';
+    let scenarioKey = 'llsc-success';
+    let stepIndex = 0;
+    let timer = null;
+
+    function choicesForTopic() {
+      return Object.entries(scenarios).filter(([, item]) => item.topic === topic);
+    }
+
+    function populateScenarios() {
+      $('scenarioSelect').innerHTML = '';
+      choicesForTopic().forEach(([key, item]) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = item.label;
+        $('scenarioSelect').appendChild(option);
+      });
+      scenarioKey = choicesForTopic()[0][0];
+      $('scenarioSelect').value = scenarioKey;
+      stepIndex = 0;
+      render();
+    }
+
+    function setTopic(nextTopic) {
+      pause();
+      topic = nextTopic;
+      $('llscPanel').hidden = topic !== 'llsc';
+      $('dbarPanel').hidden = topic !== 'dbar';
+      $('llscTab').classList.toggle('active', topic === 'llsc');
+      $('dbarTab').classList.toggle('active', topic === 'dbar');
+      populateScenarios();
+    }
+
+    function clearHighlights() {
+      document.querySelectorAll('.instruction.current, .lane.active, .flow-box.active').forEach((el) => el.classList.remove('current', 'active'));
+      $('llbitCard').classList.remove('bad');
+    }
+
+    function renderLlsc(step) {
+      $('memoryValue').textContent = step.mem;
+      $('llbitValue').textContent = step.ll;
+      $('core0Regs').textContent = step.r0 || '$t0=—，$t1=—';
+      $('core1Regs').textContent = step.r1 || '$t2=—，$t3=—';
+      $('stepTitle').textContent = step.title;
+      $('mnemonicField').textContent = step.mnemonic;
+      $('operandsField').textContent = step.operands;
+      $('stateChangeField').textContent = step.state;
+      if (step.line) document.querySelector(`[data-line="${step.line}"]`).classList.add('current');
+      if (step.core === 0) $('core0Lane').classList.add('active');
+      if (step.core === 1) $('core1Lane').classList.add('active');
+      if (step.bad) $('llbitCard').classList.add('bad');
+    }
+
+    function renderDbar(step) {
+      $('dataValue').textContent = step.data;
+      $('tagValue').textContent = step.tag;
+      $('writerAction').textContent = step.writer;
+      $('writerBuffer').innerHTML = step.buffer.map((item) => `<li>${item}</li>`).join('');
+      $('readerAction').textContent = step.reader;
+      $('readerResult').textContent = step.result;
+      $('readerResult').className = step.bad ? 'result-bad' : step.good ? 'result-good' : '';
+      $('dbarStepTitle').textContent = step.title;
+      $('dbarMnemonic').textContent = step.mnemonic;
+      $('dbarOperands').textContent = step.operands;
+      $('dbarState').textContent = step.state;
+      if (step.box) $(`${step.box}Box`).classList.add('active');
+    }
+
+    function render() {
+      clearHighlights();
+      const scenario = scenarios[scenarioKey];
+      const step = scenario.steps[stepIndex];
+      if (scenario.topic === 'llsc') renderLlsc(step); else renderDbar(step);
+      $('progress').textContent = `${stepIndex + 1} / ${scenario.steps.length}`;
+      $('prevBtn').disabled = stepIndex === 0;
+      $('nextBtn').disabled = stepIndex === scenario.steps.length - 1;
+    }
+
+    function next() {
+      const last = scenarios[scenarioKey].steps.length - 1;
+      if (stepIndex < last) { stepIndex += 1; render(); return true; }
+      pause();
+      return false;
+    }
+
+    function previous() { if (stepIndex > 0) { stepIndex -= 1; render(); } }
+    function reset() { pause(); stepIndex = 0; render(); }
+    function pause() { if (timer) clearInterval(timer); timer = null; $('playBtn').textContent = '▶ 自动播放'; }
+    function togglePlay() {
+      if (timer) { pause(); return; }
+      if (stepIndex === scenarios[scenarioKey].steps.length - 1) stepIndex = 0;
+      render();
+      $('playBtn').textContent = '⏸ 暂停';
+      timer = setInterval(next, 1700);
+    }
+
+    $('llscTab').addEventListener('click', () => setTopic('llsc'));
+    $('dbarTab').addEventListener('click', () => setTopic('dbar'));
+    $('scenarioSelect').addEventListener('change', (event) => { pause(); scenarioKey = event.target.value; stepIndex = 0; render(); });
+    $('prevBtn').addEventListener('click', previous);
+    $('nextBtn').addEventListener('click', next);
+    $('playBtn').addEventListener('click', togglePlay);
+    $('resetBtn').addEventListener('click', reset);
+    document.addEventListener('keydown', (event) => {
+      if (event.target.matches('select, button')) return;
+      if (event.key === 'ArrowRight') next();
+      if (event.key === 'ArrowLeft') previous();
+      if (event.key === ' ' || event.code === 'Space') { event.preventDefault(); togglePlay(); }
+      if (event.key.toLowerCase() === 'r') reset();
+    });
+
+    populateScenarios();
+  </script>
+</body>
+</html>
