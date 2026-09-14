@@ -18,16 +18,16 @@
 - 第 1 次课：从 0 启动 LoongArch miniOS（tag：`01-qemu-hello`）
 - 第 2 次课：`.data/.bss` 初始化与 C/汇编混合启动（tag：`02-data-bss`）
 
-**从第 3 次课起**回填并系统化汇编基础（寄存器、基础指令、访存、程序设计、调用约定），再进入构建、调试、内核服务、板级与 Agent：
+**从第 3 次课起**回填并系统化汇编基础（寄存器、基础指令、访存、程序设计、调用约定），再进入内核服务、构建调试、板级与 Agent：
 
 - 第 3 次课：寄存器、数据表示与基础指令（tag：`03-regs-alu`）
 - 第 4 次课：访存指令与内存数据组织 + 浮点基础（tag：`04-load-store`）
 - 第 5 次课：分支、循环与汇编程序设计基础（tag：`05-branch-loop`）
 - 第 6 次课：函数调用约定与栈帧（tag：`06-stack-abi`）
-- 第 7 次课：构建、链接与调试（tag：`07-build-debug`）
-- 第 8 次课：`memset`/`memcpy`/`strlen` 汇编实现（tag：`08-libc-asm`）
-- 第 9 次课：UART 驱动、输出子系统与系统调用 `sys_write`（tag：`09-uart-syscall`）
-- 第 10 次课：异常与中断处理（理论部分）（tag：`10-trap-irq`）
+- 第 7 次课：`memset`/`memcpy`/`strlen` 汇编实现（tag：`07-libc-asm`）
+- 第 8 次课：UART 驱动、输出子系统与系统调用 `sys_write`（tag：`08-uart-syscall`）
+- 第 9 次课：异常与中断处理（理论部分）（tag：`09-trap-irq`）
+- 第 10 次课：构建、链接与调试（tag：`10-build-debug`，2026-09-07 起移至此处作为理论收官，见 `docs/course_structure.md` §2.6）
 - 第 11 次课：中断/定时器实验 + miniOS 内核服务整理（tag：`11-irq-kernel-recap`）
 - 第 12 次课：板级迁移 + 综合实验：从 miniOS 到 Agent OS（tag：`12-board-agent-demo`，与 `11-irq-kernel-recap` 同一代码状态——板级迁移需要真实 2K0300 硬件，综合展示直接复用已有 `kernel_main`）
 
@@ -41,10 +41,10 @@ git switch -c my-03-lab 03-regs-alu       # 第 3 次课：另建本地分支
 git switch -c my-04-lab 04-load-store     # 第 4 次课：另建本地分支
 git switch -c my-05-lab 05-branch-loop    # 第 5 次课：另建本地分支
 git switch -c my-06-lab 06-stack-abi      # 第 6 次课：另建本地分支
-git switch -c my-07-lab 07-build-debug    # 第 7 次课：另建本地分支
-git switch -c my-08-lab 08-libc-asm       # 第 8 次课：另建本地分支
-git switch -c my-09-lab 09-uart-syscall   # 第 9 次课：另建本地分支
-git switch -c my-10-lab 10-trap-irq       # 第 10 次课：另建本地分支
+git switch -c my-07-lab 07-libc-asm       # 第 7 次课：另建本地分支
+git switch -c my-08-lab 08-uart-syscall   # 第 8 次课：另建本地分支
+git switch -c my-09-lab 09-trap-irq       # 第 9 次课：另建本地分支
+git switch -c my-10-lab 10-build-debug    # 第 10 次课：另建本地分支
 git switch -c my-11-lab 11-irq-kernel-recap  # 第 11 次课：另建本地分支
 git switch -c my-12-lab 12-board-agent-demo  # 第 12 次课：另建本地分支
 ```
@@ -70,23 +70,23 @@ git switch -c my-12-lab 12-board-agent-demo  # 第 12 次课：另建本地分�
 | `04-load-store` | 第 4 次课验收 | `lib/mem_fp.S` + `include/mem_fp.h`：§3.2 访存（`ld/st` 全家）+ 第 4 章浮点（`fadd`/位模式/转换） |
 | `05-branch-loop` | 第 5 次课验收 | `lib/branch_loop.S` + `include/branch_loop.h`：`b`/`beq`/`bne`/`beqz`/`bnez` 全覆盖 |
 | `06-stack-abi` | 第 6 次课验收 | `lib/stack_abi.S` + `include/stack_abi.h`：叶子/非叶子函数，栈帧保存/恢复 `$ra` |
-| `07-build-debug` | 第 7 次课验收 | 与 `06-stack-abi` 相同代码：本课不新增源文件，只用 readelf/nm/objdump/GDB 分析已有构建产物 |
-| `08-libc-asm` | 第 8 次课验收 | `kernel/main.c` 新增 `memset`/`memcpy`/`strlen` 边界测试（实现沿用第 2 次课 `lib/string.S`） |
-| `09-uart-syscall` | 第 9 次课验收 | `kernel/syscall.c` + `include/syscall.h`：`sys_write`/`syscall_dispatch`（UART 驱动沿用第 1 次课） |
-| `10-trap-irq` | 第 10 次课验收 | `boot/start.S` 新增 `exception_entry`；`kernel/exception.c` + `include/exception.h`：`exception_init`/`exception_handler` |
+| `07-libc-asm` | 第 7 次课验收 | `kernel/main.c` 新增 `memset`/`memcpy`/`strlen` 边界测试（实现沿用第 2 次课 `lib/string.S`）；原 `08-libc-asm` 改名 |
+| `08-uart-syscall` | 第 8 次课验收 | `kernel/syscall.c` + `include/syscall.h`：`sys_write`/`syscall_dispatch`（UART 驱动沿用第 1 次课）；原 `09-uart-syscall` 改名 |
+| `09-trap-irq` | 第 9 次课验收 | `boot/start.S` 新增 `exception_entry`；`kernel/exception.c` + `include/exception.h`：`exception_init`/`exception_handler`；原 `10-trap-irq` 改名 |
+| `10-build-debug` | 第 10 次课验收 | 与 `09-trap-irq` 相同代码：本课不新增源文件，只用 readelf/nm/objdump/GDB 分析已有构建产物；原 `07-build-debug` 改名并改指向 |
 | `11-irq-kernel-recap` | 第 11 次课验收 | `boot/start.S` `exception_entry` 升级为144字节完整寄存器保存；`kernel/irq.c` + `include/irq.h`：`timer_init`/`irq_dispatch`/`timer_stop`，`exception_handler` 新增 `Ecode==0` 中断分支 |
 | `12-board-agent-demo` | 第 12 次课验收 | 与 `11-irq-kernel-recap` 相同代码：板级迁移需要真实硬件，综合展示复用已有 `kernel_main` |
 
 第 1 次课**不包含**：`clear_bss`、`lib/string.S`、异常、系统调用。  
-第 2 次课**不包含**：异常、系统调用、中断；`string.S` 仅为 C 调汇编演示用的最小实现（精讲在第 8 次课）。  
+第 2 次课**不包含**：异常、系统调用、中断；`string.S` 仅为 C 调汇编演示用的最小实现（精讲在第 7 次课）。  
 第 3 次课**不包含**：访存精讲（仅 `st.b` 点到）、浮点实现、异常、系统调用、中断。  
 第 4 次课**不包含**：分支/循环系统讲解（`b/bl/jirl` 只读懂示例，第 5 次课系统学）、多核实现（LL/SC、DBAR/IBAR 只做纸面推演）、异常、系统调用、中断。  
 第 5 次课**不包含**：过程调用约定与栈帧（第 6 次课系统学）、异常、系统调用、中断。  
-第 6 次课**不包含**：`exception_entry` 完整实现（仅在讲义中预告结构，第 10 次课系统学）、系统调用、中断。  
-第 7 次课**不包含**：任何新指令/新库代码——纯工具链与调试课。  
-第 8 次课**不包含**：按 8 字节对齐的优化实现（仅课堂讨论方向，不要求实现）、异常、系统调用、中断。  
-第 9 次课**不包含**：真正的用户态陷入指令（教学阶段内核内直接调用 `syscall_dispatch`）、中断。  
-第 10 次课**不包含**：中断/定时器代码实现（留到第 11 次课）；`exception_handler` 只演示 `break` 触发的同步异常，不识别具体 Ecode 分类处理。  
+第 6 次课**不包含**：`exception_entry` 完整实现（仅在讲义中预告结构，第 9 次课系统学）、系统调用、中断。  
+第 7 次课**不包含**：按 8 字节对齐的优化实现（仅课堂讨论方向，不要求实现）、异常、系统调用、中断。  
+第 8 次课**不包含**：真正的用户态陷入指令（教学阶段内核内直接调用 `syscall_dispatch`）、中断。  
+第 9 次课**不包含**：中断/定时器代码实现（留到第 11 次课）；`exception_handler` 只演示 `break` 触发的同步异常，不识别具体 Ecode 分类处理。  
+第 10 次课**不包含**：任何新指令/新库代码——纯工具链与调试课。  
 第 11 次课**不包含**：除定时器外的其他中断源（如 UART 接收中断）；用户态/多任务调度。  
 第 12 次课**不包含**：真实 2K0300 板级验证（无硬件）、Agent Runtime 的实际调度/隔离实现（仅讨论）。
 

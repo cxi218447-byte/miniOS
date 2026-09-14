@@ -1,5 +1,5 @@
 /*
- * 第 10 次课：异常入口与异常上下文声明。
+ * 第 9 次课：异常入口与异常上下文声明。
  * exception_entry 实现见 boot/start.S；exception_init/handler 见 kernel/exception.c。
  */
 #ifndef MINIOS_EXCEPTION_H

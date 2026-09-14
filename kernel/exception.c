@@ -1,9 +1,9 @@
 /*
- * 第 10 次课：异常入口初始化与最小处理函数。
+ * 第 9 次课：异常入口初始化与最小处理函数。
  * 先能"看见"异常（打印 ESTAT/ERA），再谈恢复、分类处理等策略。
  * 第 11 次课：LoongArch 的中断也是通过同一个 EENTRY 入口送达的——
  * ESTAT.Ecode（bit[21:16]）为 0 时表示"中断类"（INT），此时分发给
- * irq_dispatch；非 0 则是同步异常，按第 10 次课的方式打印并跳过。
+ * irq_dispatch；非 0 则是同步异常，按第 9 次课的方式打印并跳过。
  */
 #include "exception.h"
 #include "printk.h"

@@ -14,4 +14,11 @@ long sa_add(long x, long y);
 /* 非叶子函数：a + b + c（栈帧保存/恢复 $ra，内部两次 bl sa_add） */
 long sa_add3(long a, long b, long c);
 
+/*
+ * 非叶子函数：打印 s（调用 uart_puts），返回 strlen(s)。
+ * 内部用 callee-saved 的 $s0/$s1 跨两次 bl（strlen/uart_puts）保存
+ * 字符串指针与长度——演示 $s* 寄存器"借了要还"的保存/恢复纪律。
+ */
+long sa_strlen_and_puts(const char *s);
+
 #endif

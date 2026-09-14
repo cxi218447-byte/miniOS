@@ -2,11 +2,11 @@
  * miniOS 启动入口。
  * 第 1 次课：设栈 → 进入 kernel_main → halt。
  * 第 2 次课：在进入 C 前增加 clear_bss。
- * 第 10 次课：新增 exception_entry，供 exception_init 写入 CSR.EENTRY。
+ * 第 9 次课：新增 exception_entry，供 exception_init 写入 CSR.EENTRY。
  * 第 11 次课：exception_entry 升级为完整寄存器保存——LoongArch 的同步异常
  *   （break/syscall...）和异步中断（定时器等）共享同一个 EENTRY 入口，
  *   用 ESTAT 的 Ecode 字段区分（Ecode==0 表示中断）。中断可能打在任意一条
- *   指令中间，第10次课只存 $ra 是不够的：C 处理函数一旦用到 $a0-$a7/$t0-$t8，
+ *   指令中间，第9次课只存 $ra 是不够的：C 处理函数一旦用到 $a0-$a7/$t0-$t8，
  *   就会破坏被中断代码里活跃的同名寄存器，因此必须把它们全部主动保存。
  */
 

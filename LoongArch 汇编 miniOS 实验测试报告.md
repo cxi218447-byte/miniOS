@@ -37,7 +37,7 @@ wsl --install -d Ubuntu --location "<你的课程工作目录>\env\wsl\Ubuntu"
 
 注意：WSL Ubuntu 安装由学生手工执行，安装目录必须位于项目上一级父目录
 `env\wsl\Ubuntu`，不得放在 C 盘。手工步骤见
-`docs/manual_wsl_ubuntu_install.md`。
+`docs/manual_wsl_ubuntu22_toolchain_build.md`。
 
 环境检查命令：
 

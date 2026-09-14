@@ -5,11 +5,14 @@
  * 第 4 次课：精讲 §3.2 访存与第 4 章浮点的验收输出；
  * 第 5 次课：分支、循环与汇编程序设计基础的验收输出；
  * 第 6 次课：函数调用约定与栈帧的验收输出；
- * 第 8 次课：memset/memcpy/strlen 边界测试的验收输出
- *   （实现见 lib/string.S，第 2 次课已具备，本课只做边界验收）；
- * 第 9 次课：sys_write/syscall_dispatch 的验收输出
+ * 第 7 次课：memset/memcpy/strlen 边界测试 + memmove/strcmp/zero_and_copy
+ *   （memset/memcpy/strlen 实现见 lib/string.S，第 2 次课已具备，本课做边界
+ *   验收；memmove/strcmp/zero_and_copy 是本课新增的三个真实库函数——
+ *   memmove 正确处理 memcpy 处理不了的重叠区间，strcmp 逐字节比较，
+ *   zero_and_copy 组合 memset+strlen+memcpy，是唯一的非叶子函数）；
+ * 第 8 次课：sys_write/syscall_dispatch 的验收输出
  *   （UART 驱动沿用第 1 次课的 uart_putc/uart_puts）；
- * 第 10 次课：exception_entry/exception_init 的验收输出
+ * 第 9 次课：exception_entry/exception_init 的验收输出
  *   （用 break 指令主动触发一次可控异常，观察 ESTAT/ERA）；
  * 第 11 次课：定时器中断实验的验收输出
  *   （timer_init 使能周期性定时器中断，idle 等待若干次真实 tick）。
@@ -281,11 +284,19 @@ void kernel_main(void)
         printk("frame sa_add3 (bl x2, $ra saved): 1+2+3 = ");
         print_i64_dec(r);
         printk("\n");
+
+        /* 非叶子函数：内部真调 strlen/uart_puts，用 $s0/$s1（callee-saved）
+         * 跨两次 bl 保存字符串指针与长度——对应讲义 §4.1 callee-saved 规则 */
+        printk("frame sa_strlen_and_puts (uses $s0/$s1): ");
+        r = sa_strlen_and_puts(data_message);
+        printk(" -> len = ");
+        print_i64_dec(r);
+        printk("\n");
     }
 
     printk("week06-stack-abi check done\n");
 
-    /* ---- 第 8 次课：memset/memcpy/strlen 边界测试 ---- */
+    /* ---- 第 7 次课：memset/memcpy/strlen 边界测试 ---- */
     {
         char buf1[4] = { 'X', 'X', 'X', 'X' };
         char buf2[4] = { 'X', 'X', 'X', 'X' };
@@ -325,9 +336,54 @@ void kernel_main(void)
         printk(" (应为 0；非空串已在第 5 次课验收)\n");
     }
 
-    printk("week08-libc-asm check done\n");
+    /* ---- 第 7 次课综合示例：zero_and_copy + strcmp ---- */
+    {
+        char greet[16];
 
-    /* ---- 第 9 次课：UART 输出子系统 + sys_write/syscall_dispatch 验收 ---- */
+        /* zero_and_copy 内部依次 bl memset/strlen/memcpy，
+         * 先清零整块 greet，再把 "hi7" 搬进去。 */
+        zero_and_copy(greet, "hi7", sizeof(greet));
+        printk("zero_and_copy: greet=\"");
+        printk(greet);
+        printk("\"\n");
+
+        /* strcmp 验证：先清零再拷贝，天然以 '\0' 结尾，和字面量逐字节相等 */
+        if (strcmp(greet, "hi7") == 0) {
+            printk("strcmp verified: greet == \"hi7\"\n");
+        }
+
+        /* strcmp 的另一分支：不同字符串必须返回非 0 */
+        if (strcmp(greet, "hi8") != 0) {
+            printk("strcmp verified: greet != \"hi8\"\n");
+        }
+    }
+
+    /* memmove：memcpy 处理不了重叠区间，这里现场验证两种重叠方向都正确 */
+    {
+        char left[8]  = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' };
+        char right[8] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' };
+        int i;
+
+        /* dst < src：整体左移 2 位，覆盖区间重叠 */
+        memmove(left, left + 2, 6);
+        printk("memmove left  (dst<src): ");
+        for (i = 0; i < 8; i++) {
+            print_char(left[i]);
+        }
+        printk(" (期望 CDEFGHGH)\n");
+
+        /* dst > src：整体右移 2 位，覆盖区间同样重叠，方向相反 */
+        memmove(right + 2, right, 6);
+        printk("memmove right (dst>src): ");
+        for (i = 0; i < 8; i++) {
+            print_char(right[i]);
+        }
+        printk(" (期望 ABABCDEF)\n");
+    }
+
+    printk("week07-libc-asm check done\n");
+
+    /* ---- 第 8 次课：UART 输出子系统 + sys_write/syscall_dispatch 验收 ---- */
     {
         static const char sys_msg[] = "sys_write via dispatch\n";
 
@@ -351,9 +407,9 @@ void kernel_main(void)
         printk(" (应为 -1，未知系统调用号)\n");
     }
 
-    printk("week09-uart-syscall check done\n");
+    printk("week08-uart-syscall check done\n");
 
-    /* ---- 第 10 次课：异常入口与异常上下文验收 ---- */
+    /* ---- 第 9 次课：异常入口与异常上下文验收 ---- */
     exception_init();
     printk("exception_init: EENTRY set to exception_entry\n");
     /*
@@ -364,7 +420,7 @@ void kernel_main(void)
     __asm__ volatile("break 0");
     printk("resumed after break: ertn returned control here\n");
 
-    printk("week10-trap-irq check done\n");
+    printk("week09-trap-irq check done\n");
 
     /* ---- 第 11 次课：定时器中断实验 ---- */
     {
