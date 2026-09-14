@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>普通访存指令 · 访存效果动画</title>
+<style>
+  :root{
+    --navy:#1B2A4A;
+    --navy-dark:#121D33;
+    --offwhite:#F5F7FB;
+    --ink:#1B2A4A;
+    --mute:#5B6B85;
+    --line:#DCE3EE;
+    --blue:#3B6EA5;
+    --orange:#C1652F;
+    --white:#FFFFFF;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0;
+    background:var(--offwhite);
+    font-family: "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--ink);
+  }
+  .page{
+    max-width:1340px;
+    margin:0 auto;
+    padding:48px 56px 80px;
+  }
+  .eyebrow{
+    display:inline-block;
+    background:var(--blue);
+    color:#fff;
+    font-weight:700;
+    font-size:26px;
+    padding:10px 26px;
+    border-radius:30px;
+    margin-bottom:22px;
+  }
+  h1{
+    font-size:44px;
+    margin:0 0 10px;
+    font-weight:800;
+    letter-spacing:.5px;
+  }
+  .sub{
+    font-size:26px;
+    color:var(--mute);
+    margin:0 0 28px;
+  }
+
+  .legend{
+    display:flex;
+    gap:36px;
+    flex-wrap:wrap;
+    align-items:center;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px 28px;
+    margin-bottom:44px;
+  }
+  .legend-item{ display:flex; align-items:center; gap:14px; }
+  .legend-swatch{
+    width:56px; height:40px;
+    border-radius:7px;
+    flex:none;
+  }
+  .legend-swatch.addr{
+    border:3px dashed var(--mute);
+    background:#fff;
+  }
+  .legend-swatch.content{
+    border:3px solid var(--orange);
+    background:#FBEEE6;
+  }
+  .legend-text{ font-size:24px; color:var(--ink); }
+  .legend-text b{ font-weight:700; }
+
+  .card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:34px 40px 40px;
+    margin-bottom:40px;
+    box-shadow:0 10px 30px rgba(27,42,74,.06);
+  }
+  .card-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:18px;
+    margin-bottom:8px;
+  }
+  .code{
+    font-family:"Consolas","Courier New",monospace;
+    font-size:32px;
+    font-weight:700;
+    background:var(--navy-dark);
+    color:#E7EDF7;
+    padding:14px 26px;
+    border-radius:10px;
+    letter-spacing:1px;
+  }
+  .meaning{
+    font-size:26px;
+    color:var(--mute);
+    margin:14px 0 22px;
+  }
+  .meaning b{ color:var(--ink); }
+
+  .play-btn{
+    font-size:24px;
+    font-weight:700;
+    color:#fff;
+    background:var(--blue);
+    border:none;
+    border-radius:30px;
+    padding:14px 34px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    transition:transform .15s ease, box-shadow .15s ease;
+    box-shadow:0 6px 16px rgba(59,110,165,.35);
+  }
+  .play-btn:hover{ transform:translateY(-2px); box-shadow:0 10px 22px rgba(59,110,165,.4); }
+  .play-btn:active{ transform:translateY(0); }
+  .play-btn svg{ width:20px; height:20px; }
+
+  .steps{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom:22px;
+  }
+  .step{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:24px;
+    font-weight:700;
+    color:var(--mute);
+    background:var(--offwhite);
+    border:2px solid var(--line);
+    border-radius:30px;
+    padding:10px 22px;
+    transition:all .25s ease;
+  }
+  .step .dot{
+    width:14px; height:14px; border-radius:50%;
+    background:var(--line);
+    transition:all .25s ease;
+  }
+  .step-arrow{ font-size:26px; color:var(--line); font-weight:700; }
+  .card.phase-addr .step.step-addr{ color:var(--blue); border-color:var(--blue); background:#EAF0F8; }
+  .card.phase-addr .step.step-addr .dot{ background:var(--blue); }
+  .card.phase-data .step.step-data{ color:var(--orange); border-color:var(--orange); background:#FBEEE6; }
+  .card.phase-data .step.step-data .dot{ background:var(--orange); }
+
+  .diagram{ position:relative; padding-top:4px; }
+  .reg-row{
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    gap:40px;
+    margin-bottom:6px;
+  }
+  .reg{
+    border:3px solid var(--blue);
+    border-radius:12px;
+    padding:14px 26px;
+    text-align:center;
+    background:#EAF0F8;
+    min-width:170px;
+  }
+  .reg.dest{ border-color:var(--orange); background:#FBEEE6; }
+  .reg-name{
+    font-family:"Consolas","Courier New",monospace;
+    font-size:28px;
+    font-weight:700;
+    color:var(--ink);
+  }
+  .reg-label{ font-size:24px; color:var(--mute); margin-top:2px; }
+  .reg-value{
+    font-family:"Consolas","Courier New",monospace;
+    font-size:24px;
+    font-weight:700;
+    color:var(--orange);
+    margin-top:8px;
+    min-height:30px;
+    transition:opacity .25s ease;
+  }
+  .reg-value.placeholder{ color:#C7CEDC; font-weight:400; }
+
+  .arrow-zone{ position:relative; height:120px; margin:6px 0; }
+  .arrow-track{
+    position:absolute;
+    left:calc(var(--ax, 50%) - 4px);
+    top:0; width:8px; height:100%;
+    background:var(--line);
+    border-radius:4px;
+  }
+  .card.phase-data .arrow-track{
+    background:
+      linear-gradient(180deg, var(--orange) 0 14px, transparent 14px 28px) repeat-y;
+    background-size:8px 56px;
+    animation: flow 0.9s linear infinite;
+  }
+  .card.store.phase-data .arrow-track{ animation-direction:reverse; }
+  @keyframes flow{ from{ background-position:0 0; } to{ background-position:0 56px; } }
+
+  .arrowhead{ position:absolute; left:var(--ax,50%); width:0; height:0;
+    border-left:14px solid transparent; border-right:14px solid transparent; }
+  .arrowhead.up{ top:-4px; transform:translateX(-14px); border-bottom:20px solid var(--line); }
+  .arrowhead.down{ bottom:-4px; transform:translateX(-14px); border-top:20px solid var(--line); }
+  .card.phase-data .arrowhead.up{ border-bottom-color:var(--orange); }
+  .card.phase-data .arrowhead.down{ border-top-color:var(--orange); }
+
+  .ea-chip{
+    position:absolute; left:var(--ax,50%); top:20%;
+    transform:translate(20px,-50%);
+    background:var(--navy); color:#fff;
+    font-family:"Consolas","Courier New",monospace;
+    font-size:24px; font-weight:700;
+    padding:10px 20px; border-radius:10px;
+    white-space:nowrap;
+    box-shadow:0 6px 14px rgba(18,29,51,.3);
+  }
+  .card.phase-addr .ea-chip{ animation:chipPulse .8s ease-in-out infinite; }
+  @keyframes chipPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(59,110,165,.5); }
+    50%{ box-shadow:0 0 0 12px rgba(59,110,165,0); }
+  }
+
+  .token{
+    position:absolute;
+    left:calc(var(--ax, 50%) - 14px);
+    width:28px; height:28px; border-radius:50%;
+    background:var(--orange);
+    box-shadow:0 4px 10px rgba(193,101,47,.5);
+    opacity:0;
+    top:100%;
+  }
+  .card.phase-data.load .token{ animation:tokenUp 1.3s ease forwards; }
+  .card.phase-data.store .token{ animation:tokenDown 1.3s ease forwards; }
+  @keyframes tokenUp{
+    0%{ opacity:0; top:94%; }
+    12%{ opacity:1; }
+    88%{ opacity:1; top:4%; }
+    100%{ opacity:0; top:0%; }
+  }
+  @keyframes tokenDown{
+    0%{ opacity:0; top:4%; }
+    12%{ opacity:1; }
+    88%{ opacity:1; top:94%; }
+    100%{ opacity:0; top:100%; }
+  }
+
+  .mem-strip{ display:flex; align-items:flex-start; gap:10px; margin-top:8px; }
+  .mem-col{ flex:1; display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .mem-col.label-col{ flex:0 0 100px; }
+  .row-label{
+    height:54px;
+    display:flex; align-items:center; justify-content:flex-end;
+    font-size:24px; font-weight:700; color:var(--mute);
+    padding-right:8px;
+  }
+  .row-label.content-label{ height:72px; }
+
+  .addr-box{
+    height:54px;
+    border:2.5px dashed var(--line);
+    border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:"Consolas","Courier New",monospace;
+    font-size:24px; color:var(--mute);
+    background:#fff;
+    transition:all .25s ease;
+  }
+  .addr-box.target{ border-color:var(--blue); color:var(--blue); font-weight:700; background:#EAF0F8; }
+  .card.phase-addr .addr-box.target{ animation:pulseBlue .8s ease-in-out infinite; }
+  @keyframes pulseBlue{
+    0%,100%{ box-shadow:0 0 0 0 rgba(59,110,165,.45); }
+    50%{ box-shadow:0 0 0 10px rgba(59,110,165,0); }
+  }
+
+  .content-box{
+    height:72px;
+    border:2.5px solid var(--line);
+    border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:"Consolas","Courier New",monospace;
+    font-size:26px; font-weight:700; color:#C7CEDC;
+    background:#F7F8FB;
+    transition:all .3s ease;
+  }
+  .content-box.filled{ color:var(--mute); background:#fff; }
+  .content-box.target{ border-color:var(--orange); }
+  .content-box.target.filled{ color:var(--orange); background:#FBEEE6; }
+  .card.phase-data .content-box.target{ animation:pulseOrange .8s ease-in-out infinite; }
+  @keyframes pulseOrange{
+    0%,100%{ box-shadow:0 0 0 0 rgba(193,101,47,.45); }
+    50%{ box-shadow:0 0 0 10px rgba(193,101,47,0); }
+  }
+
+  .mem-caption{ font-size:24px; color:var(--mute); text-align:center; min-height:30px; }
+  .mem-ellipsis-col{ flex:0 0 44px; display:flex; flex-direction:column; gap:8px; }
+  .mem-ellipsis{ height:54px; display:flex; align-items:center; justify-content:center; font-size:28px; color:var(--mute); }
+  .mem-ellipsis.big{ height:72px; }
+
+  .note{
+    margin-top:26px;
+    font-size:24px;
+    color:var(--mute);
+    line-height:1.5;
+    border-left:5px solid var(--blue);
+    padding:6px 0 6px 22px;
+  }
+  .note b{ color:var(--ink); }
+
+  footer{ text-align:center; color:var(--mute); font-size:24px; margin-top:20px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="eyebrow">普通访存指令</span>
+  <h1>三种寻址方式的访存效果</h1>
+  <p class="sub">每条指令都拆成两步：先算出「地址」，再对该地址上的「内容」进行读 / 写</p>
+
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch addr"></div>
+      <div class="legend-text"><b>虚线框 = 地址</b>　数据存放在内存的哪个位置</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch content"></div>
+      <div class="legend-text"><b>实线框 = 内容</b>　该位置里实际存储的数据值</div>
+    </div>
+  </div>
+
+  <!-- ================= ld.d ================= -->
+  <div class="card load" id="card-ld" style="--ax:50%;">
+    <div class="card-head">
+      <div class="code">ld.d&nbsp;&nbsp;&nbsp;$r4, $r5, 8</div>
+      <button class="play-btn" onclick="play('card-ld')">
+        <svg viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+        播放动画
+      </button>
+    </div>
+    <p class="meaning">立即数偏移寻址：有效地址 = <b>(r5) + 8</b>，取 8 字节<b>内容</b>，<b>从内存加载到 r4</b></p>
+
+    <div class="steps">
+      <div class="step step-addr"><span class="dot"></span>① 计算地址 EA</div>
+      <div class="step-arrow">→</div>
+      <div class="step step-data"><span class="dot"></span>② 按地址读取内容</div>
+    </div>
+
+    <div class="diagram">
+      <div class="reg-row">
+        <div class="reg dest">
+          <div class="reg-name">r4</div>
+          <div class="reg-label">目的寄存器</div>
+          <div class="reg-value placeholder" id="val-ld">— 等待读取 —</div>
+        </div>
+      </div>
+
+      <div class="arrow-zone">
+        <div class="arrow-track"></div>
+        <div class="arrowhead up"></div>
+        <div class="ea-chip">EA = r5 + 8</div>
+        <div class="token"></div>
+      </div>
+
+      <div class="mem-strip">
+        <div class="mem-col label-col">
+          <div class="row-label">地址</div>
+          <div class="row-label content-label">内容</div>
+          <div class="mem-caption">&nbsp;</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box">r5+0</div>
+          <div class="content-box filled">9C</div>
+          <div class="mem-caption">基址 r5</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box">r5+4</div>
+          <div class="content-box filled">4B</div>
+          <div class="mem-caption">&nbsp;</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box target">r5+8</div>
+          <div class="content-box filled target">A5</div>
+          <div class="mem-caption">↑ 目标地址</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box target">r5+12</div>
+          <div class="content-box filled target">3E</div>
+          <div class="mem-caption">共 8 字节</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box">r5+16</div>
+          <div class="content-box filled">02</div>
+          <div class="mem-caption">&nbsp;</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">地址（虚线框）由 <b>r5 + 8</b> 算出，只是一个位置编号；真正被搬运的是该位置<b>内容</b>（实线框中的 A5 3E…），搬运方向是<b>内存 → 寄存器</b></div>
+  </div>
+
+  <!-- ================= ldx.w ================= -->
+  <div class="card load" id="card-ldx" style="--ax:50%;">
+    <div class="card-head">
+      <div class="code">ldx.w&nbsp;&nbsp;$r4, $r5, $r6</div>
+      <button class="play-btn" onclick="play('card-ldx')">
+        <svg viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+        播放动画
+      </button>
+    </div>
+    <p class="meaning">寄存器变址寻址：有效地址 = <b>(r5) + (r6)</b>，取 4 字节<b>内容</b>，<b>从内存加载到 r4</b></p>
+
+    <div class="steps">
+      <div class="step step-addr"><span class="dot"></span>① 计算地址 EA</div>
+      <div class="step-arrow">→</div>
+      <div class="step step-data"><span class="dot"></span>② 按地址读取内容</div>
+    </div>
+
+    <div class="diagram">
+      <div class="reg-row">
+        <div class="reg">
+          <div class="reg-name">r6</div>
+          <div class="reg-label">变址寄存器（偏移量）</div>
+          <div class="reg-value">= 8（示例）</div>
+        </div>
+        <div class="reg dest">
+          <div class="reg-name">r4</div>
+          <div class="reg-label">目的寄存器</div>
+          <div class="reg-value placeholder" id="val-ldx">— 等待读取 —</div>
+        </div>
+      </div>
+
+      <div class="arrow-zone">
+        <div class="arrow-track"></div>
+        <div class="arrowhead up"></div>
+        <div class="ea-chip">EA = r5 + r6</div>
+        <div class="token"></div>
+      </div>
+
+      <div class="mem-strip">
+        <div class="mem-col label-col">
+          <div class="row-label">地址</div>
+          <div class="row-label content-label">内容</div>
+          <div class="mem-caption">&nbsp;</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box">r5+0</div>
+          <div class="content-box filled">9C</div>
+          <div class="mem-caption">基址 r5</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box">…</div>
+          <div class="content-box">··</div>
+          <div class="mem-caption">&nbsp;</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box target">r5+r6</div>
+          <div class="content-box filled target">7B</div>
+          <div class="mem-caption">↑ 目标地址</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box">…</div>
+          <div class="content-box">··</div>
+          <div class="mem-caption">共 4 字节</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box">…</div>
+          <div class="content-box">··</div>
+          <div class="mem-caption">&nbsp;</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">地址由 <b>r5 + r6（寄存器的实际值）</b>算出，运行时才能确定是哪一格；确定后再去读该格的<b>内容</b> 7B，常用于数组下标访问</div>
+  </div>
+
+  <!-- ================= stptr.d ================= -->
+  <div class="card store" id="card-stptr" style="--ax:50%;">
+    <div class="card-head">
+      <div class="code">stptr.d&nbsp;$r4, $r5, 100</div>
+      <button class="play-btn" onclick="play('card-stptr')">
+        <svg viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+        播放动画
+      </button>
+    </div>
+    <p class="meaning">对齐远偏移寻址：有效地址 = <b>(r5) + 100×4</b>，将 r4 的<b>内容</b>（8 字节），<b>写入内存</b></p>
+
+    <div class="steps">
+      <div class="step step-addr"><span class="dot"></span>① 计算地址 EA</div>
+      <div class="step-arrow">→</div>
+      <div class="step step-data"><span class="dot"></span>② 把内容写入该地址</div>
+    </div>
+
+    <div class="diagram">
+      <div class="reg-row">
+        <div class="reg dest">
+          <div class="reg-name">r4</div>
+          <div class="reg-label">源寄存器（待写出的内容）</div>
+          <div class="reg-value">= 5A 1F</div>
+        </div>
+      </div>
+
+      <div class="arrow-zone">
+        <div class="arrow-track"></div>
+        <div class="arrowhead down"></div>
+        <div class="ea-chip">EA = r5 + 100×4 = r5+400</div>
+        <div class="token"></div>
+      </div>
+
+      <div class="mem-strip">
+        <div class="mem-col label-col">
+          <div class="row-label">地址</div>
+          <div class="row-label content-label">内容</div>
+          <div class="mem-caption">&nbsp;</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box">r5+0</div>
+          <div class="content-box filled">9C</div>
+          <div class="mem-caption">基址 r5</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box">r5+4</div>
+          <div class="content-box filled">4B</div>
+          <div class="mem-caption">&nbsp;</div>
+        </div>
+        <div class="mem-ellipsis-col">
+          <div class="mem-ellipsis">⋯</div>
+          <div class="mem-ellipsis big">⋯</div>
+          <div class="mem-caption">&nbsp;</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box target">r5+400</div>
+          <div class="content-box target" id="cell-1-stptr">··</div>
+          <div class="mem-caption">↓ 目标地址</div>
+        </div>
+        <div class="mem-col">
+          <div class="addr-box target">r5+404</div>
+          <div class="content-box target" id="cell-2-stptr">··</div>
+          <div class="mem-caption">共 8 字节</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">地址由 <b>r5 + 100×4 = r5+400</b> 算出（14 位立即数先左移 2 位换算成字节偏移）；地址确定后，把 r4 的<b>内容</b> 5A 1F 写入该位置，原来的内容被覆盖</div>
+  </div>
+
+  <footer>LoongArch 普通访存指令 · 访存效果动画</footer>
+</div>
+
+<script>
+function resetCard(id){
+  const card = document.getElementById(id);
+  card.classList.remove('phase-addr','phase-data');
+  if(id==='card-ld'){
+    document.getElementById('val-ld').textContent = '— 等待读取 —';
+    document.getElementById('val-ld').classList.add('placeholder');
+  }
+  if(id==='card-ldx'){
+    document.getElementById('val-ldx').textContent = '— 等待读取 —';
+    document.getElementById('val-ldx').classList.add('placeholder');
+  }
+  if(id==='card-stptr'){
+    document.getElementById('cell-1-stptr').textContent = '··';
+    document.getElementById('cell-2-stptr').textContent = '··';
+    document.getElementById('cell-1-stptr').classList.remove('filled');
+    document.getElementById('cell-2-stptr').classList.remove('filled');
+  }
+}
+
+function play(id){
+  const card = document.getElementById(id);
+  clearTimeout(card._t1); clearTimeout(card._t2); clearTimeout(card._t3);
+  resetCard(id);
+  void card.offsetWidth;
+
+  card.classList.add('phase-addr');
+
+  card._t1 = setTimeout(()=>{
+    card.classList.remove('phase-addr');
+    void card.offsetWidth;
+    card.classList.add('phase-data');
+
+    card._t2 = setTimeout(()=>{
+      if(id==='card-ld'){
+        const v = document.getElementById('val-ld');
+        v.textContent = '= A5 3E …';
+        v.classList.remove('placeholder');
+      }
+      if(id==='card-ldx'){
+        const v = document.getElementById('val-ldx');
+        v.textContent = '= 7B';
+        v.classList.remove('placeholder');
+      }
+      if(id==='card-stptr'){
+        document.getElementById('cell-1-stptr').textContent = '5A';
+        document.getElementById('cell-2-stptr').textContent = '1F';
+        document.getElementById('cell-1-stptr').classList.add('filled');
+        document.getElementById('cell-2-stptr').classList.add('filled');
+      }
+    }, 900);
+
+  }, 1000);
+
+  card._t3 = setTimeout(()=>{
+    card.classList.remove('phase-addr','phase-data');
+  }, 2500);
+}
+
+window.addEventListener('load', ()=>{
+  const ids = ['card-ld','card-ldx','card-stptr'];
+  ids.forEach((id,i)=> setTimeout(()=> play(id), 500 + i*3000));
+});
+</script>
+</body>
+</html>
