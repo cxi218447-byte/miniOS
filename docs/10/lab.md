@@ -97,6 +97,11 @@ which gdb-multiarch || which gdb
 
 若本次课要求从 tag 建分支，命令形如（**在已进入的 Ubuntu 里执行**）：
 
+**⚠️ 这一步每周都要重新做一次，不是学期初做过就行**：教师每周都会发布新的实
+验 checkpoint（新 tag），有时还会同步更新公共代码。哪怕上周已经 `fetch` 过，
+这周开始实验前也要**重新**执行 `git fetch --tags`，否则要么找不到这周的 tag，
+要么本地代码是过期的。
+
 ```bash
 git fetch --tags
 git switch -c my-10-lab <本次课tag>
