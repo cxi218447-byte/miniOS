@@ -9,6 +9,7 @@
 
 - [教师讲义 lecture_notes.md](lecture_notes.md)
 - [实验指导书 lab.md](lab.md)
+- [2K0300 开发板上手指南 board_2k0300_setup.md](board_2k0300_setup.md)（有真实板卡的同学看：接线/装驱动/串口连通，不含移植代码答案）
 - [课堂 PPT 12_board_agent_demo_course.pptx](12_board_agent_demo_course.pptx)（40 页，`python scripts/generate_week12_course_ppt.py` 生成）
 - 讲义 PDF / 实验指导书 PDF：待生成（`python scripts/generate_all_labs.py` + `python scripts/md_to_pdf.py`）
 
