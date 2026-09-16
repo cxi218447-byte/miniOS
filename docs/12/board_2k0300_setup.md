@@ -1,14 +1,10 @@
-# 2K0300 开发板上手指南（学生版：接线→装驱动→串口连通→编译→上板→排错）
+# 2K0300 开发板上手指南（学生版：接线→装驱动→串口连通→改代码→编译→上板）
 
 > 面向**手上有真实龙芯 2K0300（先锋派）开发板**的同学（本学期人手一块，
-> Task4 是必做项，见 `docs/12/lab.md`）。§1-§3 讲怎么把板子接上、看到
-> 串口输出；§4-§6 讲怎么把你自己在 Task1/Task2 做出来的 2K0300 版 miniOS
-> 编译、送进板子、跳转执行、看结果排错。
->
-> **芯片级参数（UART 基地址、入口地址等）不在这份文档里**，是 Task1/Task2
-> 要你自己从资料里查、从代码里推、上板实测验证的部分——这里只给"怎么做
-> 这件事"的方法和工具用法，不给具体数值，照抄别人的地址大概率行不通
-> （不同批次/供应商可能不一样，实测验证永远比抄答案可靠）。
+> Task4 是必做项，见 `docs/12/lab.md`）。从这份文档开始，从第 11 次课的
+> 检查点（`12-board-agent-demo`）出发，一步步把代码改成 2K0300 版本、编译、
+> 送上板、跑起来。跟着做，照抄这里给的代码和命令，能编译过、能在串口里
+> 看到 week01-08 的验收输出就算完成 Task4。
 
 ## 0. 需要准备的资料/软件
 
@@ -172,29 +168,236 @@ miniOS 实验要用的 U-Boot console 是两个不同阶段。如果你是为了
 miniOS 上板实验，清完屏后记得 `reboot`，这次开机时按住 `m`（进菜单）或
 按 `c`（直接进 console），别让它又自动 `boot` 进 Linux。
 
-## 4. 编译 2K0300 版本
+## 4. 把仓库改成"平台可插拔"结构
 
-串口连通、Task1（差异表）、Task2（平台拆分：`include/uart.h`/`kernel/linker.ld`
-按平台拆开、`Makefile` 加开关）做完之后，应该能编译出一个 2K0300 专用的
-镜像。参考做法（具体文件名/宏名是你自己 Task2 设计的结果，这里只给流程）：
+从第 11 次课检查点出发（`git fetch --tags && git switch -c my-12-lab
+12-board-agent-demo`，`docs/12/lab.md` §2.2 已经讲过）。目标：
+`make`（不带 `PLATFORM` 参数）行为跟之前完全一样，`make PLATFORM=2k0300`
+编译出真机能跑的版本。照下面的步骤改，改完的结构和值都是真机实测跑通过的，
+直接抄。
+
+### 4.1 拆分链接脚本
+
+```bash
+git mv kernel/linker.ld kernel/linker_qemu_virt.ld
+```
+
+新建 `kernel/linker_2k0300.ld`：
+
+```ld
+ENTRY(_start)
+
+SECTIONS
+{
+    . = 0x9000000000200000;
+
+    .text : ALIGN(4K) {
+        KEEP(*(.text.boot))
+        *(.text .text.*)
+    }
+
+    .rodata : ALIGN(4K) {
+        *(.rodata .rodata.*)
+    }
+
+    .data : ALIGN(4K) {
+        *(.data .data.*)
+    }
+
+    __bss_start = .;
+    .bss : ALIGN(4K) {
+        *(.bss .bss.*)
+        *(COMMON)
+    }
+    __bss_end = .;
+}
+```
+
+### 4.2 拆分 UART 平台头文件
+
+新建目录 `include/platform/`，两个文件：
+
+`include/platform/qemu_virt.h`：
+
+```c
+#ifndef MINIOS_PLATFORM_QEMU_VIRT_H
+#define MINIOS_PLATFORM_QEMU_VIRT_H
+
+/* QEMU loongarch64 virt 常见 16550 串口地址，高半区直接映射。 */
+#define UART0_BASE            0x900000001fe001e0UL
+#define UART_LSR_OFF           5
+#define UART_TX_EMPTY_MASK     0x20
+#define UART_NEEDS_CLOCK_INIT  0
+
+#endif
+```
+
+`include/platform/2k0300.h`：
+
+```c
+#ifndef MINIOS_PLATFORM_2K0300_H
+#define MINIOS_PLATFORM_2K0300_H
+
+#define UART0_BASE             0x8000000016100000UL
+#define UART_LSR_OFF            5
+#define UART_TX_EMPTY_MASK      0x20
+#define UART_NEEDS_CLOCK_INIT   1
+
+#endif
+```
+
+### 4.3 `include/uart.h` 改为按平台切换
+
+```c
+#ifndef MINIOS_UART_H
+#define MINIOS_UART_H
+
+#if defined(PLATFORM_2K0300)
+#include "platform/2k0300.h"
+#else
+#include "platform/qemu_virt.h"
+#endif
+
+void uart_platform_init(void);
+void uart_putc(char ch);
+void uart_puts(const char *s);
+
+#endif
+```
+
+### 4.4 `kernel/printk.c` 补轮询 + 平台初始化钩子
+
+```c
+#include "printk.h"
+#include "uart.h"
+
+void uart_platform_init(void)
+{
+    /* 实测这颗芯片不需要额外配置就能收发，留空即可。 */
+}
+
+void uart_putc(char ch)
+{
+    volatile unsigned char *uart = (volatile unsigned char *)UART0_BASE;
+
+    /* 等发送保持寄存器空再写，QEMU 的 16550 模型这一位恒为就绪，
+     * 这段代码在 QEMU 下原样兼容。 */
+    while ((uart[UART_LSR_OFF] & UART_TX_EMPTY_MASK) == 0) {
+    }
+
+    *uart = (unsigned char)ch;
+}
+
+void uart_puts(const char *s)
+{
+    while (*s) {
+        if (*s == '\n') {
+            uart_putc('\r');
+        }
+        uart_putc(*s++);
+    }
+}
+
+void printk(const char *s)
+{
+    uart_puts(s);
+}
+
+/* printk_udec / printk_hex 内容不变，照抄现有文件即可。 */
+```
+
+在 `kernel/main.c` 开头加一行 `#include "uart.h"`，并在 `kernel_main`
+**第一行**（早于任何 `printk` 调用）加：
+
+```c
+uart_platform_init();
+```
+
+### 4.5 `Makefile` 加平台开关
+
+```makefile
+# 平台选择：qemu_virt（默认）｜2k0300
+PLATFORM ?= qemu_virt
+
+ifeq ($(PLATFORM),2k0300)
+CFLAGS_PLATFORM := -DPLATFORM_2K0300
+LINKER_SCRIPT   := kernel/linker_2k0300.ld
+else
+CFLAGS_PLATFORM := -DPLATFORM_QEMU_VIRT
+LINKER_SCRIPT   := kernel/linker_qemu_virt.ld
+endif
+```
+
+把原来 `CFLAGS := ...` 那一行下面加 `CFLAGS += $(CFLAGS_PLATFORM)`，再加
+一行 `CFLAGS += -MMD -MP`（头文件改了会自动触发重新编译，避免"改了头文件
+但没重新编译"这种坑）。
+
+把原来 `LDFLAGS := -T kernel/linker.ld -nostdlib -static` 改成：
+
+```makefile
+LDFLAGS := -T $(LINKER_SCRIPT) -nostdlib -static
+```
+
+`$(TARGET)` 规则依赖里把 `kernel/linker.ld` 换成 `$(LINKER_SCRIPT)`：
+
+```makefile
+$(TARGET): $(OBJS) $(LINKER_SCRIPT)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS)
+```
+
+文件最后一行加上（配合 `-MMD -MP` 生成的依赖文件）：
+
+```makefile
+-include $(OBJS:.o=.d)
+```
+
+`run`/`debug` 目标加一个平台保护，防止误在 2k0300 配置下启动 QEMU：
+
+```makefile
+run: $(TARGET)
+ifneq ($(PLATFORM),qemu_virt)
+	@echo "PLATFORM=$(PLATFORM) 不能用 QEMU 运行，请走板级烧录流程"; exit 1
+else
+	$(QEMU) $(QEMU_ARGS)
+endif
+```
+
+`debug` 同理加一份。
+
+### 4.6 先在 QEMU 上回归测试
 
 ```bash
 make clean
-make PLATFORM=2k0300    # 你自己在 Task2 里加的开关名，不一定叫这个
+make PLATFORM=qemu_virt
+make PLATFORM=qemu_virt run
 ```
 
-产出的 `build/minios.bin` 就是要送进板子的内容。**注意（真实踩过的坑）**：
-只改头文件、没改 `.c` 文件本体时，`make` 有可能静默复用旧的 `.o` 文件——
-改完平台相关的头文件，保险起见先 `make clean` 再编译。
+**预期**：串口输出跟改动前完全一样（逐字节一致）。不一致说明改坏了
+QEMU 路径，先在这一步排除，不要带着这个不确定性去测板子。
 
-## 5. 把 minios.bin 送进板子内存
+## 5. 编译 2K0300 版本
+
+```bash
+make clean
+make PLATFORM=2k0300
+```
+
+产出 `build/minios.bin`。**注意（真实踩过的坑）**：只改头文件、没改
+`.c` 文件本体时，如果没有 §4.5 那个 `-MMD -MP`，`make` 可能静默复用旧的
+`.o` 文件——改完平台相关的头文件，不确定的话直接 `make clean` 再编译。
+
+## 6. 把 minios.bin 送进板子内存
 
 到这一步只有串口连着，没有额外硬件，可以先试 U-Boot 自带的 `loady`
 （Ymodem 协议）：
 
 1. 先确认支持：在 `=>` 提示符下 `help loady`。
-2. 执行 `loady <addr>`（`<addr>` 填你 Task1 推导出来的入口地址）——会打印
-   `## Ready for binary (ymodem) download...` 然后卡住等待，这是正常的。
+2. 执行：
+   ```
+   loady 0x9000000000200000
+   ```
+   会打印 `## Ready for binary (ymodem) download...` 然后卡住等待，这是
+   正常的，它在等对端发送文件。
 3. 在终端软件里找发送文件的入口：
    - **MobaXterm**：右键终端空白处 → 找 "Zmodem" 相关菜单项（虽然协议名
      写的是 Zmodem，配合 `loady` 实测可用）
@@ -202,45 +405,48 @@ make PLATFORM=2k0300    # 你自己在 Task2 里加的开关名，不一定叫�
      解压直接运行 `ttermpro.exe`）：菜单 **File → Transfer → YMODEM →
      Send...**，官方明确支持 Ymodem，比 MobaXterm 那个含糊的菜单更可靠
    - 选 `build/minios.bin`
-4. 传完看 u-boot 打印的 `Total Size`，**必须**跟编译出来的文件字节数对上
-   （`ls -la build/minios.bin` 核对）——字节数不对就是传错文件或传输出
-   问题了，不要往下走。
+4. 传完看 u-boot 打印的 `Total Size`，**必须**跟 `ls -la build/minios.bin`
+   看到的字节数对上——不对就是传错文件或传输出问题了，不要往下走。
 
 **如果传输反复报协议错误**（比如 `Retry: Got xx for sector ACK`，重试、
-断开终端重连都解决不了）：换成 U 盘方式——U 盘格式化成 **MBR 分区表 +
-FAT32**（很多 U 盘出厂是 GPT/exFAT，U-Boot 认不了，用 Windows"磁盘管理"
-转换一下），把 `minios.bin` 拷进去插到板子 USB-A 口：
+断开终端重连都解决不了）：先试试完全退出终端软件重新打开再来一次；还不行
+就换 U 盘方式——U 盘格式化成 **MBR 分区表 + FAT32**（很多 U 盘出厂是
+GPT/exFAT，U-Boot 认不了，用 Windows"磁盘管理"转换一下），把 `minios.bin`
+拷进去插到板子 USB-A 口：
 
 ```
 usb start
-fatload usb 0:1 <addr> minios.bin
+fatload usb 0:1 0x9000000000200000 minios.bin
 ```
 
-## 6. 跳转执行与排错方法论
+## 7. 跳转执行
 
 传完确认字节数对上之后：
 
 ```
-go <addr>
+go 0x9000000000200000
 ```
+
+**预期输出**：能看到 `Hello miniOS on LoongArch64` 打头的一长串验收信息，
+一路到 `week08-uart-syscall check done`，跟 QEMU 上跑出来的逐字节一致。
+
+**跑到 `exception_init: EENTRY set to exception_entry` 之后卡住、串口
+出现一段像固件级"未处理异常"的转储（不是我们自己代码打印的格式）——
+这是已知的、目前还没解决的边界（week09 的 `break` 异常测试在真机上会
+碰到这个），不用觉得是自己哪里做错了，也不要求解决。跑到这里、能复现、
+截图/复制这段输出就算完成 Task4 该做的部分。**
 
 不管出现哪种情况，**都不会有硬件损坏风险**——`go` 只是让 CPU 跳去执行内存
 里的代码，U-Boot 本身存在 Flash/EMMC 里，这个操作根本碰不到它，跑飞了
 断电重启/复位键就恢复，跟没发生过一样。
 
-盯着串口看接下来几秒，会是下面几种情况之一，**每种对应的排查方向都不一样，
-不要一看不对就急着换地址重试**：
+如果连 week01 的 `Hello miniOS` 都没看到（完全无输出/乱码/传输失败这几种），
+按下面这张表排查：
 
-| 现象 | 说明 | 先怀疑 |
-|---|---|---|
-| 看到 `Hello miniOS on LoongArch64` 等验收输出 | 成功 | 继续往后跑，看能跑到第几周的验收 |
-| 传输（`loady`/`fatload`）本身就失败或不稳定 | 这跟入口地址是否正确无关，是这个地址在当前环境下访问本身有问题（可能不在任何已配置的映射窗口内） | 换一个已经验证过传输能成功的地址再试，不要跟"代码跑不跑得起来"这个问题混在一起排查 |
-| 传输**成功**（字节数对上了），但 `go` 之后完全无输出、卡死 | 这里最容易踩的坑：**传输成功只能证明这块内存可读写，不能证明代码从这里执行是对的**。LoongArch 有不止一种高位直接映射窗口，其中的区别足以让"内存读写正常"但"外设寄存器访问失效"同时成立——写操作可能被吞掉、根本没送到硬件总线上，代码其实在正常执行，只是你永远看不到输出，从外部完全没法跟"卡死"区分 | 先怀疑：入口地址（代码/栈跑的地方）和 UART 地址（外设寄存器）是不是应该用**不同类型**的映射窗口；不要两个混用同一种假设 |
-| 有输出但是乱码 | 代码确实跑起来了，UART 时钟/寄存器偏移这类参数不对 | 波特率除数、时钟输入频率、是否严格 16550 兼容 |
+| 现象 | 先怀疑 |
+|---|---|
+| 传输（`loady`/`fatload`）本身就失败或不稳定 | 换终端软件重连一次；实在不行走 U 盘方式 |
+| 传输成功（字节数对上了），但 `go` 之后完全无输出 | 检查 §4.1/§4.2 的地址和代码是不是照抄对了，特别是 `include/platform/2k0300.h` 和 `kernel/linker_2k0300.ld` 里的那两个地址常量 |
+| 有输出但是乱码 | 波特率是不是设成了 115200；`UART_LSR_OFF`/`UART_TX_EMPTY_MASK` 是不是抄对了 |
 
-排查这类问题的正确心态是**一次只改一个变量、每次都记录现象**（哪个地址、
-传输成不成功、`go` 之后什么反应），不要凭感觉一次改好几个假设——这正是
-真实硬件移植的常态：没有教材上现成的地址表，只能一步步实验缩小范围。
-
-回到 `docs/12/lab.md` Task4，继续板端实践；Task3 的排错顺序对照本节表格
-和讲义 §4.4 一起用。
+回到 `docs/12/lab.md` Task4，把 `week01-08` 的完整串口输出记录下来交上去。
