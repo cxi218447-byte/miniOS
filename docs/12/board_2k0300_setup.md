@@ -362,7 +362,16 @@ else
 endif
 ```
 
-`debug` 同理加一份。
+`debug` 结构一样，只是里面的命令换成原来 `debug` 那行：
+
+```makefile
+debug: $(TARGET)
+ifneq ($(PLATFORM),qemu_virt)
+	@echo "PLATFORM=$(PLATFORM) 不能用 QEMU 调试，请走板级烧录流程"; exit 1
+else
+	$(QEMU) $(QEMU_ARGS) -S -s
+endif
+```
 
 ### 4.6 先在 QEMU 上回归测试
 
