@@ -306,12 +306,21 @@ void printk(const char *s)
 /* printk_udec / printk_hex 内容不变，照抄现有文件即可。 */
 ```
 
-在 `kernel/main.c` 开头加一行 `#include "uart.h"`，并在 `kernel_main`
-**第一行**（早于任何 `printk` 调用）加：
+这里涉及 `kernel/main.c` 两处**不同位置**的改动，别混在一起：
 
-```c
-uart_platform_init();
-```
+1. **文件最上面**，跟着已有的一串 `#include` 加一行：
+   ```c
+   #include "uart.h"
+   ```
+2. **`void kernel_main(void) { ... }` 函数体内部**——不是文件顶层、不是
+   跟在 `#include` 后面——在 `long r;` 这行变量声明**之后**、原来紧接着
+   的"使能浮点单元"那段代码**之前**，加一行：
+   ```c
+   uart_platform_init();
+   ```
+   加错位置（比如放到函数外面）编译会报 `data definition has no type or
+   storage class` / `conflicting types` 这类错误——出现这个报错就是加错
+   位置了，回去确认是不是加到 `kernel_main` 函数体里面了。
 
 ### 4.5 `Makefile` 加平台开关
 
