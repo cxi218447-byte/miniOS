@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 5 次课动画 - LoongArch miniOS</title>
+  <link rel="stylesheet" href="../assets/shared.css">
+</head>
+<body>
+  <main class="site-shell">
+    <nav class="topbar" aria-label="站点导航">
+      <p class="brand">第 5 次课：分支、循环与汇编程序设计基础</p>
+      <a class="home-link" href="../">返回首页</a>
+    </nav>
+
+    <section class="hero">
+      <p class="eyebrow">第 5 次课 · tag 05-branch-loop</p>
+      <h1>课堂演示动画</h1>
+      <p class="lead">这次课的目标是把「认指令」升级成「会设计有结构的汇编程序」：控制流指令
+        <code>b/beq/bne/beqz/bnez</code>、while/if-else 模板，以及从自然语言到汇编的完整翻译方法论
+        （五问 → 流程图 → 伪代码 → 汇编 → 寄存器模拟）。下面这个动画把 <code>sum = 1..n</code> 这道
+        师生共译的例题拆成五个环节逐步演示，可以按环节跳转，也可以在寄存器模拟环节单步/自动执行。</p>
+    </section>
+
+    <section class="grid" aria-label="第 5 次课动画列表">
+      <a class="card" href="sum-1-to-n/">
+        <small>五环节 · 可单步</small>
+        <strong>从自然语言到寄存器：sum = 1..n</strong>
+        <span>自然语言 → 流程图 → 伪代码 → 汇编 → 寄存器模拟，完整演示一道题目从描述到指令执行的
+          翻译过程；寄存器模拟环节可以单步或自动播放，逐条查看 $t0/$t1/$t2/$a0 的变化。</span>
+      </a>
+    </section>
+
+    <p class="note">建议先读 <code>docs/05/lecture_notes.md</code> 的"汇编程序设计方法"，
+      再用这个动画走一遍完整翻译过程，最后对照 <code>docs/05/lab.md</code> 的两个编程任务
+      （现场共写 <code>bl_min_in_array</code>、独立实现 <code>bl_max_in_array</code>）。</p>
+  </main>
+</body>
+</html>

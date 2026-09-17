@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Demo 1 · sum = 1..n</title>
+<style>
+  :root {
+    --bg: #F7FAFC;
+    --panel-bg: #FFFFFF;
+    --navy: #0A4A6E;
+    --navy-deep: #0B1E3B;
+    --teal: #1C7293;
+    --orange: #F2A541;
+    --title: #16222E;
+    --body-text: #3E4E5C;
+    --muted: #7E93A3;
+    --border: #D6E3EC;
+    --hilite-bg: #EAF3F8;
+    --code-bg: #16222E;
+    --code-text: #E8EEF2;
+    --code-comment: #7FA8BE;
+    --pill-inactive-bg: #E4ECF2;
+    --pill-inactive-text: #5B6E7C;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1620;
+      --panel-bg: #17212B;
+      --title: #EAF2F7;
+      --body-text: #C3D2DC;
+      --muted: #8496A4;
+      --border: #2A3A47;
+      --hilite-bg: #16283566;
+      --code-bg: #0B1219;
+      --code-text: #E8EEF2;
+      --pill-inactive-bg: #223140;
+      --pill-inactive-text: #9CB0BE;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1620;
+    --panel-bg: #17212B;
+    --title: #EAF2F7;
+    --body-text: #C3D2DC;
+    --muted: #8496A4;
+    --border: #2A3A47;
+    --hilite-bg: #16283566;
+    --code-bg: #0B1219;
+    --code-text: #E8EEF2;
+    --pill-inactive-bg: #223140;
+    --pill-inactive-text: #9CB0BE;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--body-text);
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 24px 48px;
+  }
+  header.top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-size: clamp(20px, 2.6vw, 28px);
+    color: var(--title);
+    margin: 0;
+    font-weight: 800;
+  }
+  .badge {
+    display: inline-block;
+    background: var(--navy);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 999px;
+    letter-spacing: .02em;
+  }
+  .problem-box {
+    background: var(--hilite-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin: 14px 0 26px;
+    font-size: 16px;
+    color: var(--body-text);
+    line-height: 1.6;
+  }
+  .problem-box b { color: var(--title); }
+  .problem-box .reg { color: var(--teal); font-weight: 700; font-family: Consolas, "Courier New", monospace; }
+
+  /* stage pills */
+  .stages {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .stage-pill {
+    position: relative;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 6px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #fff;
+    background: var(--pill-inactive-bg);
+    color: var(--pill-inactive-text);
+    transition: transform .25s ease, background .25s ease, color .25s ease, box-shadow .25s ease;
+    text-align: center;
+  }
+  .stage-pill .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.12);
+    font-size: 12px;
+    margin-right: 6px;
+  }
+  .stage-pill.active {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(10,74,110,.25);
+  }
+  .stage-pill.active .num { background: rgba(255,255,255,.28); }
+  .stage-pill[data-i="0"].active { background: var(--navy-deep); color:#fff; }
+  .stage-pill[data-i="1"].active { background: var(--teal); color:#fff; }
+  .stage-pill[data-i="2"].active { background: var(--navy-deep); color:#fff; }
+  .stage-pill[data-i="3"].active { background: var(--teal); color:#fff; }
+  .stage-pill[data-i="4"].active { background: var(--orange); color:#3a2504; }
+  .stage-pill.done:not(.active) { color: var(--teal); }
+
+  .stage-arrows {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    margin-top: -14px;
+    margin-bottom: 8px;
+    pointer-events: none;
+  }
+  .stage-arrows span { text-align: center; color: var(--muted); font-size: 14px; }
+
+  /* main panel */
+  .panel-outer {
+    position: relative;
+    min-height: 420px;
+  }
+  .panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px 28px;
+    box-shadow: 0 10px 30px rgba(10,30,50,.06);
+    opacity: 0;
+    transform: translateX(24px);
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    pointer-events: none;
+    transition: opacity .38s ease, transform .38s ease;
+  }
+  .panel.active {
+    opacity: 1;
+    transform: translateX(0);
+    position: relative;
+    pointer-events: auto;
+  }
+  .panel.leaving { transform: translateX(-24px); }
+
+  .panel h2 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    color: var(--title);
+  }
+  .panel .sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 18px;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  button.ctrl {
+    border: 1px solid var(--border);
+    background: var(--panel-bg);
+    color: var(--title);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+  }
+  button.ctrl:hover { background: var(--hilite-bg); }
+  button.ctrl:active { transform: scale(.96); }
+  button.ctrl.primary { background: var(--teal); color: #fff; border-color: var(--teal); }
+  button.ctrl.primary:hover { filter: brightness(1.08); }
+  button.ctrl:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* stage 0: natural language */
+  .nl-text {
+    font-size: 22px;
+    line-height: 1.9;
+    color: var(--title);
+    padding: 10px 4px;
+  }
+  .nl-text .hl {
+    background: var(--hilite-bg);
+    border-bottom: 2px solid var(--teal);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: Consolas, "Courier New", monospace;
+    color: var(--teal);
+    font-weight: 700;
+  }
+
+  /* flowchart */
+  .flow-wrap { display:flex; justify-content:center; }
+  .fbox {
+    opacity: 0; transform: translateY(14px) scale(.96);
+    transition: opacity .4s ease, transform .4s ease;
+  }
+  .fbox.show { opacity: 1; transform: translateY(0) scale(1); }
+
+  /* code blocks */
+  .code-card {
+    background: var(--code-bg);
+    border-radius: 12px;
+    padding: 20px 22px;
+    overflow-x: auto;
+  }
+  .code-line {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 15px;
+    line-height: 1.9;
+    color: var(--code-text);
+    white-space: pre;
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: opacity .35s ease, transform .35s ease, background .25s ease;
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+  .code-line.show { opacity: 1; transform: translateX(0); }
+  .code-line .cmt { color: var(--code-comment); font-style: italic; }
+  .code-line .lbl { color: var(--orange); }
+  .code-line.pc { background: rgba(28,114,147,.35); }
+
+  /* register sim */
+  .sim-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 560px) {
+    .sim-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .code-card { padding: 12px 10px; }
+    .code-line { font-size: 12px; }
+    .reg-table { font-size: 12px; }
+    .reg-table th, .reg-table td { padding: 6px 4px; }
+  }
+  .reg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 15px;
+  }
+  .reg-table th, .reg-table td {
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .reg-table th { background: var(--hilite-bg); color: var(--title); font-family: inherit; }
+  .reg-table td.regname { color: var(--muted); background: var(--hilite-bg); font-weight: 700; }
+  .reg-table td.val {
+    color: var(--title);
+    font-weight: 700;
+    transition: background .3s ease, color .3s ease;
+  }
+  .reg-table td.val.changed {
+    background: var(--orange);
+    color: #3a2504;
+  }
+  .note-line {
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--body-text);
+    background: var(--hilite-bg);
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-height: 20px;
+  }
+  #simCode .code-line { font-size: 13px; line-height: 1.7; }
+  .step-counter { font-size: 13px; color: var(--muted); margin-left: auto; }
+
+  /* stage footer nav */
+  .stage-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 22px;
+  }
+  .stage-nav .dots { display:flex; gap:6px; }
+  .stage-nav .dot { width:7px; height:7px; border-radius:50%; background: var(--border); }
+  .stage-nav .dot.on { background: var(--teal); }
+
+  footer.credit {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>从自然语言到寄存器：sum = 1..n</h1>
+    <span class="badge">Demo 1 · 师生共译</span>
+  </header>
+
+  <div class="problem-box">
+    题目：求 <b>1 + 2 + ... + n</b> 的和。n 由 <span class="reg">$a0</span> 传入，和通过 <span class="reg">$a0</span> 返回。
+  </div>
+
+  <div class="stages" id="stages"></div>
+  <div class="stage-arrows" id="stageArrows"></div>
+
+  <div class="panel-outer" id="panelOuter"></div>
+
+  <div class="stage-nav">
+    <button class="ctrl" id="prevStage">← 上一环节</button>
+    <div class="dots" id="dots"></div>
+    <button class="ctrl primary" id="nextStage">下一环节 →</button>
+  </div>
+
+  <footer class="credit">点击上方任意环节可直接跳转 · 每个环节都可以重新播放</footer>
+</div>
+
+<script>
+(function () {
+  var STAGES = ["自然语言", "流程图", "伪代码", "汇编", "寄存器模拟"];
+  var current = 0;
+
+  // ---------- build stage pills ----------
+  var stagesEl = document.getElementById("stages");
+  var arrowsEl = document.getElementById("stageArrows");
+  STAGES.forEach(function (name, i) {
+    var b = document.createElement("button");
+    b.className = "stage-pill";
+    b.dataset.i = i;
+    b.innerHTML = '<span class="num">' + (i + 1) + '</span>' + name;
+    b.addEventListener("click", function () { goTo(i); });
+    stagesEl.appendChild(b);
+
+    var a = document.createElement("span");
+    a.textContent = i < STAGES.length - 1 ? "→" : "";
+    arrowsEl.appendChild(a);
+  });
+
+  var dotsEl = document.getElementById("dots");
+  STAGES.forEach(function (_, i) {
+    var d = document.createElement("span");
+    d.className = "dot";
+    dotsEl.appendChild(d);
+  });
+
+  // ---------- panel content builders ----------
+  var panelOuter = document.getElementById("panelOuter");
+  var panels = [];
+
+  function makePanel(i) {
+    var p = document.createElement("div");
+    p.className = "panel";
+    p.dataset.i = i;
+    panelOuter.appendChild(p);
+    panels[i] = p;
+    return p;
+  }
+
+  // Stage 0: 自然语言
+  (function () {
+    var p = makePanel(0);
+    p.innerHTML =
+      '<h2>① 自然语言</h2>' +
+      '<div class="sub">先用人话把问题说清楚——这是所有翻译的起点</div>' +
+      '<div class="nl-text">求 <span class="hl">1 + 2 + ... + n</span> 的和。<br>' +
+      'n 由 <span class="hl">$a0</span> 传入，和通过 <span class="hl">$a0</span> 返回。</div>';
+  })();
+
+  // Stage 1: 流程图
+  (function () {
+    var p = makePanel(1);
+    p.innerHTML =
+      '<h2>② 流程图</h2>' +
+      '<div class="sub">把人话拆成「判断 + 重复」的结构</div>' +
+      '<div class="toolbar"><button class="ctrl primary" id="flowPlay">▶ 播放动画</button></div>' +
+      '<div class="flow-wrap"><svg viewBox="0 0 620 460" width="100%" style="max-width:560px" id="flowSvg"></svg></div>';
+    buildFlowchart(document.getElementById("flowSvg"));
+    document.getElementById("flowPlay").addEventListener("click", playFlow);
+  })();
+
+  function buildFlowchart(svg) {
+    var ns = "http://www.w3.org/2000/svg";
+    function box(id, x, y, w, h, text, fill, textColor, shape) {
+      var g = document.createElementNS(ns, "g");
+      g.setAttribute("class", "fbox");
+      g.setAttribute("id", id);
+      var rect;
+      if (shape === "diamond") {
+        rect = document.createElementNS(ns, "polygon");
+        var cx = x + w / 2, cy = y + h / 2;
+        rect.setAttribute("points", cx + "," + y + " " + (x + w) + "," + cy + " " + cx + "," + (y + h) + " " + x + "," + cy);
+      } else if (shape === "stadium") {
+        rect = document.createElementNS(ns, "rect");
+        rect.setAttribute("x", x); rect.setAttribute("y", y);
+        rect.setAttribute("width", w); rect.setAttribute("height", h);
+        rect.setAttribute("rx", h / 2); rect.setAttribute("ry", h / 2);
+      } else {
+        rect = document.createElementNS(ns, "rect");
+        rect.setAttribute("x", x); rect.setAttribute("y", y);
+        rect.setAttribute("width", w); rect.setAttribute("height", h);
+        rect.setAttribute("rx", 8); rect.setAttribute("ry", 8);
+      }
+      rect.setAttribute("fill", fill);
+      g.appendChild(rect);
+      var lines = text.split("\n");
+      lines.forEach(function (line, idx) {
+        var t = document.createElementNS(ns, "text");
+        t.setAttribute("x", x + w / 2);
+        t.setAttribute("y", y + h / 2 + (idx - (lines.length - 1) / 2) * 18 + 5);
+        t.setAttribute("text-anchor", "middle");
+        t.setAttribute("font-size", "15");
+        t.setAttribute("font-family", "Consolas, monospace");
+        t.setAttribute("fill", textColor);
+        t.setAttribute("font-weight", "700");
+        t.textContent = line;
+        g.appendChild(t);
+      });
+      svg.appendChild(g);
+      return g;
+    }
+    function arrow(id, x1, y1, x2, y2, label, labelDx) {
+      var g = document.createElementNS(ns, "g");
+      g.setAttribute("class", "fbox");
+      g.setAttribute("id", id);
+      var line = document.createElementNS(ns, "line");
+      line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+      line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+      line.setAttribute("stroke", "#1C7293");
+      line.setAttribute("stroke-width", "2.5");
+      line.setAttribute("marker-end", "url(#arrowhead)");
+      g.appendChild(line);
+      if (label) {
+        var t = document.createElementNS(ns, "text");
+        t.setAttribute("x", x2 + (labelDx || 8));
+        t.setAttribute("y", (y1 + y2) / 2);
+        t.setAttribute("font-size", "13");
+        t.setAttribute("fill", "#7E93A3");
+        t.textContent = label;
+        g.appendChild(t);
+      }
+      svg.appendChild(g);
+      return g;
+    }
+    var defs = document.createElementNS(ns, "defs");
+    defs.innerHTML = '<marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><polygon points="0 0, 7 3, 0 6" fill="#1C7293"/></marker>';
+    svg.appendChild(defs);
+
+    box("f-start", 210, 10, 200, 46, "开始", "#0B1E3B", "#fff", "stadium");
+    arrow("f-a1", 310, 56, 310, 90);
+    box("f-init", 160, 92, 300, 56, "sum = 0    i = 1", "#0A4A6E", "#fff");
+    arrow("f-a2", 310, 148, 310, 182);
+    box("f-cond", 190, 184, 240, 90, "i <= n ?", "#EAF3F8", "#16222E", "diamond");
+    arrow("f-a3", 430, 229, 560, 229, "否", 8);
+    arrow("f-a4", 310, 274, 310, 306);
+    box("f-body", 160, 308, 300, 56, "sum = sum + i\ni = i + 1", "#1C7293", "#fff");
+    // loop back
+    var g = document.createElementNS(ns, "g");
+    g.setAttribute("class", "fbox");
+    g.setAttribute("id", "f-loopback");
+    var path = document.createElementNS(ns, "path");
+    path.setAttribute("d", "M 160 336 C 40 336, 40 229, 190 229");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "#1C7293");
+    path.setAttribute("stroke-width", "2.5");
+    path.setAttribute("marker-end", "url(#arrowhead)");
+    g.appendChild(path);
+    var lt = document.createElementNS(ns, "text");
+    lt.setAttribute("x", 46); lt.setAttribute("y", 285);
+    lt.setAttribute("font-size", "13"); lt.setAttribute("fill", "#7E93A3");
+    lt.textContent = "是";
+    g.appendChild(lt);
+    svg.appendChild(g);
+
+    box("f-return", 460, 204, 150, 50, "return sum", "#F2A541", "#3a2504");
+  }
+
+  var flowOrder = ["f-start", "f-a1", "f-init", "f-a2", "f-cond", "f-a4", "f-body", "f-loopback", "f-a3", "f-return"];
+  function playFlow() {
+    flowOrder.forEach(function (id, idx) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove("show");
+      setTimeout(function () { el.classList.add("show"); }, idx * 260);
+    });
+  }
+
+  // Stage 2: 伪代码
+  var pseudoLines = [
+    "sum = 0",
+    "i = 1",
+    "while i <= n:",
+    "    sum = sum + i",
+    "    i = i + 1",
+    "return sum"
+  ];
+  (function () {
+    var p = makePanel(2);
+    p.innerHTML =
+      '<h2>③ 伪代码</h2>' +
+      '<div class="sub">用接近编程语言的写法固定「循环」的结构</div>' +
+      '<div class="toolbar"><button class="ctrl primary" id="pseudoPlay">▶ 逐行播放</button></div>' +
+      '<div class="code-card" id="pseudoCard"></div>';
+    var card = document.getElementById("pseudoCard");
+    pseudoLines.forEach(function (l, i) {
+      var d = document.createElement("div");
+      d.className = "code-line";
+      d.id = "pl-" + i;
+      d.textContent = l;
+      card.appendChild(d);
+    });
+    document.getElementById("pseudoPlay").addEventListener("click", function () {
+      playLines("pl-", pseudoLines.length);
+    });
+  })();
+
+  function playLines(prefix, count, delay) {
+    for (var i = 0; i < count; i++) {
+      (function (i) {
+        var el = document.getElementById(prefix + i);
+        if (!el) return;
+        el.classList.remove("show");
+        setTimeout(function () { el.classList.add("show"); }, i * (delay || 260));
+      })(i);
+    }
+  }
+
+  // Stage 3: 汇编
+  var asmLines = [
+    { t: "move    $t0, $a0", c: "# t0 = n" },
+    { t: "move    $t1, $zero", c: "# sum = 0" },
+    { t: "li.w    $t2, 1", c: "# i = 1" },
+    { t: "loop:", c: "", lbl: true },
+    { t: "bgt     $t2, $t0, done", c: "# i > n ? 跳出" },
+    { t: "add.w   $t1, $t1, $t2", c: "# sum += i" },
+    { t: "addi.w  $t2, $t2, 1", c: "# i += 1" },
+    { t: "b       loop", c: "" },
+    { t: "done:", c: "", lbl: true },
+    { t: "move    $a0, $t1", c: "# 返回 sum" },
+    { t: "jr      $ra", c: "" }
+  ];
+  (function () {
+    var p = makePanel(3);
+    p.innerHTML =
+      '<h2>④ 汇编</h2>' +
+      '<div class="sub">龙芯汇编实现——判断用 bgt，重复用 b 回跳</div>' +
+      '<div class="toolbar"><button class="ctrl primary" id="asmPlay">▶ 逐行播放</button></div>' +
+      '<div class="code-card" id="asmCard"></div>';
+    var card = document.getElementById("asmCard");
+    asmLines.forEach(function (l, i) {
+      var d = document.createElement("div");
+      d.className = "code-line";
+      d.id = "al-" + i;
+      if (l.lbl) {
+        d.innerHTML = '<span class="lbl">' + l.t + '</span>';
+      } else {
+        var pad = l.c ? "  " : "";
+        d.innerHTML = l.t + pad + (l.c ? '<span class="cmt">' + l.c + '</span>' : "");
+      }
+      card.appendChild(d);
+    });
+    document.getElementById("asmPlay").addEventListener("click", function () {
+      playLines("al-", asmLines.length, 200);
+    });
+  })();
+
+  // Stage 4: 寄存器模拟
+  // trace for n = 3
+  var simSteps = [
+    { line: 0, regs: { t0: 3 }, note: "取入 n：t0 = 3" },
+    { line: 1, regs: { t1: 0 }, note: "sum 初始化为 0" },
+    { line: 2, regs: { t2: 1 }, note: "i 初始化为 1" },
+    { line: 4, regs: {}, note: "判断 1 > 3？否，继续循环体" },
+    { line: 5, regs: { t1: 1 }, note: "sum = 0 + 1 = 1" },
+    { line: 6, regs: { t2: 2 }, note: "i = 1 + 1 = 2" },
+    { line: 7, regs: {}, note: "跳回 loop" },
+    { line: 4, regs: {}, note: "判断 2 > 3？否，继续循环体" },
+    { line: 5, regs: { t1: 3 }, note: "sum = 1 + 2 = 3" },
+    { line: 6, regs: { t2: 3 }, note: "i = 2 + 1 = 3" },
+    { line: 7, regs: {}, note: "跳回 loop" },
+    { line: 4, regs: {}, note: "判断 3 > 3？否，继续循环体" },
+    { line: 5, regs: { t1: 6 }, note: "sum = 3 + 3 = 6" },
+    { line: 6, regs: { t2: 4 }, note: "i = 3 + 1 = 4" },
+    { line: 7, regs: {}, note: "跳回 loop" },
+    { line: 4, regs: {}, note: "判断 4 > 3？是，跳出循环 → done" },
+    { line: 9, regs: { a0: 6 }, note: "把 sum 存入 $a0，准备返回" },
+    { line: 10, regs: {}, note: "jr $ra，函数返回，$a0 = 6" }
+  ];
+  var simIdx = -1;
+  var simRegs = { t0: "—", t1: "—", t2: "—", a0: "—" };
+  var simPlaying = false, simTimer = null;
+
+  (function () {
+    var p = makePanel(4);
+    p.innerHTML =
+      '<h2>⑤ 寄存器模拟</h2>' +
+      '<div class="sub">用 n = 3 走一遍：观察每条指令如何改变寄存器</div>' +
+      '<div class="toolbar">' +
+        '<button class="ctrl" id="simReset">⟲ 重置</button>' +
+        '<button class="ctrl" id="simPrev">← 上一步</button>' +
+        '<button class="ctrl primary" id="simNext">下一步 →</button>' +
+        '<button class="ctrl" id="simPlay">▶ 自动播放</button>' +
+        '<span class="step-counter" id="simCounter"></span>' +
+      '</div>' +
+      '<div class="sim-grid">' +
+        '<div class="code-card" id="simCode"></div>' +
+        '<div>' +
+          '<table class="reg-table">' +
+            '<tr><th>寄存器</th><th>含义</th><th>值</th></tr>' +
+            '<tr><td class="regname">$t0</td><td>n</td><td class="val" id="v-t0">—</td></tr>' +
+            '<tr><td class="regname">$t1</td><td>sum</td><td class="val" id="v-t1">—</td></tr>' +
+            '<tr><td class="regname">$t2</td><td>i</td><td class="val" id="v-t2">—</td></tr>' +
+            '<tr><td class="regname">$a0</td><td>传参 / 返回值</td><td class="val" id="v-a0">—</td></tr>' +
+          '</table>' +
+          '<div class="note-line" id="simNote">点击「下一步」开始单步执行 (n = 3)</div>' +
+        '</div>' +
+      '</div>';
+    var card = document.getElementById("simCode");
+    asmLines.forEach(function (l, i) {
+      var d = document.createElement("div");
+      d.className = "code-line show";
+      d.id = "sl-" + i;
+      if (l.lbl) {
+        d.innerHTML = '<span class="lbl">' + l.t + '</span>';
+      } else {
+        var pad = l.c ? "  " : "";
+        d.innerHTML = l.t + pad + (l.c ? '<span class="cmt">' + l.c + '</span>' : "");
+      }
+      card.appendChild(d);
+    });
+    document.getElementById("simNext").addEventListener("click", function () { stopSimAuto(); simStep(1); });
+    document.getElementById("simPrev").addEventListener("click", function () { stopSimAuto(); simStep(-1); });
+    document.getElementById("simReset").addEventListener("click", function () { stopSimAuto(); simResetFn(); });
+    document.getElementById("simPlay").addEventListener("click", toggleSimAuto);
+    simResetFn();
+  })();
+
+  function simResetFn() {
+    simIdx = -1;
+    simRegs = { t0: "—", t1: "—", t2: "—", a0: "—" };
+    ["t0", "t1", "t2", "a0"].forEach(function (r) {
+      var el = document.getElementById("v-" + r);
+      el.textContent = "—";
+      el.classList.remove("changed");
+    });
+    for (var i = 0; i < asmLines.length; i++) {
+      var el = document.getElementById("sl-" + i);
+      if (el) el.classList.remove("pc");
+    }
+    document.getElementById("simNote").textContent = "点击「下一步」开始单步执行 (n = 3)";
+    document.getElementById("simCounter").textContent = "0 / " + simSteps.length;
+    document.getElementById("simPrev").disabled = true;
+  }
+
+  function simStep(dir) {
+    if (dir > 0 && simIdx >= simSteps.length - 1) { stopSimAuto(); return; }
+    if (dir < 0 && simIdx <= -1) return;
+    simIdx += dir;
+    for (var i = 0; i < asmLines.length; i++) {
+      var el = document.getElementById("sl-" + i);
+      if (el) el.classList.remove("pc");
+    }
+    ["t0", "t1", "t2", "a0"].forEach(function (r) {
+      document.getElementById("v-" + r).classList.remove("changed");
+    });
+    if (simIdx === -1) { simResetFn(); return; }
+
+    // recompute regs by replaying up to simIdx (simple + robust)
+    var regs = { t0: "—", t1: "—", t2: "—", a0: "—" };
+    var changedKeys = [];
+    for (var s = 0; s <= simIdx; s++) {
+      var step = simSteps[s];
+      Object.keys(step.regs).forEach(function (k) {
+        regs[k] = step.regs[k];
+        if (s === simIdx) changedKeys.push(k);
+      });
+    }
+    simRegs = regs;
+    ["t0", "t1", "t2", "a0"].forEach(function (r) {
+      document.getElementById("v-" + r).textContent = regs[r];
+    });
+    changedKeys.forEach(function (k) {
+      document.getElementById("v-" + k).classList.add("changed");
+    });
+    var cur = simSteps[simIdx];
+    var pcEl = document.getElementById("sl-" + cur.line);
+    if (pcEl) pcEl.classList.add("pc");
+    document.getElementById("simNote").textContent = cur.note;
+    document.getElementById("simCounter").textContent = (simIdx + 1) + " / " + simSteps.length;
+    document.getElementById("simPrev").disabled = simIdx <= -1;
+    if (simIdx >= simSteps.length - 1) stopSimAuto();
+  }
+
+  function toggleSimAuto() {
+    if (simPlaying) { stopSimAuto(); return; }
+    simPlaying = true;
+    document.getElementById("simPlay").textContent = "⏸ 暂停";
+    simTimer = setInterval(function () {
+      if (simIdx >= simSteps.length - 1) { stopSimAuto(); return; }
+      simStep(1);
+    }, 900);
+  }
+  function stopSimAuto() {
+    simPlaying = false;
+    document.getElementById("simPlay").textContent = "▶ 自动播放";
+    if (simTimer) { clearInterval(simTimer); simTimer = null; }
+  }
+
+  // ---------- stage navigation ----------
+  function goTo(i) {
+    if (i === current) { replay(i); return; }
+    var old = current;
+    current = i;
+    render();
+  }
+
+  function replay(i) {
+    if (i === 1) playFlow();
+    if (i === 2) playLines("pl-", pseudoLines.length);
+    if (i === 3) playLines("al-", asmLines.length, 200);
+  }
+
+  function render() {
+    panels.forEach(function (p, i) {
+      p.classList.remove("active", "leaving");
+      if (i === current) p.classList.add("active");
+    });
+    var pillEls = stagesEl.querySelectorAll(".stage-pill");
+    pillEls.forEach(function (b, i) {
+      b.classList.toggle("active", i === current);
+      b.classList.toggle("done", i < current);
+    });
+    var dotEls = dotsEl.querySelectorAll(".dot");
+    dotEls.forEach(function (d, i) { d.classList.toggle("on", i === current); });
+    document.getElementById("prevStage").disabled = current === 0;
+    document.getElementById("nextStage").textContent = current === STAGES.length - 1 ? "回到开头 ↺" : "下一环节 →";
+    if (current !== 4) stopSimAuto();
+    setTimeout(function () { replay(current); }, 80);
+  }
+
+  document.getElementById("prevStage").addEventListener("click", function () {
+    if (current > 0) goTo(current - 1);
+  });
+  document.getElementById("nextStage").addEventListener("click", function () {
+    if (current < STAGES.length - 1) goTo(current + 1); else goTo(0);
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight") { if (current < STAGES.length - 1) goTo(current + 1); }
+    if (e.key === "ArrowLeft") { if (current > 0) goTo(current - 1); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
