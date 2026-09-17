@@ -18,8 +18,8 @@
       <h1>课堂演示动画</h1>
       <p class="lead">这次课的核心是「先算地址、再动内容」这两步怎么分开理解：有效地址怎么算、
         普通 <code>ld/st</code> 按宽度加载/存储时怎么做符号扩展或截断；以及为什么多核环境下光靠
-        普通读改写不安全，需要 <code>ll/sc</code> 配合 <code>dbar</code> 保证顺序。
-        下面两个动画分别对应这两块内容，都可以逐步或自动播放。</p>
+        普通读改写不安全，需要 <code>ll/sc</code> 配合 <code>dbar</code> 保证顺序；再往后是十进制数如何
+        一步步手算编码成 IEEE 754 浮点数的位模式。下面几个动画分别对应这几块内容，都可以逐步或自动播放。</p>
     </section>
 
     <section class="grid" aria-label="第 4 次课动画列表">
@@ -36,10 +36,18 @@
         <span>演示 <code>ll.w/sc.w</code> 原子读改写的执行流程，以及 <code>dbar</code> 数据栅障如何
           保证访存顺序；用于理解教材中边界检查访存与多核同步的纸面推演部分。</span>
       </a>
+
+      <a class="card" href="ieee754/">
+        <small>交互 · 逐步演示</small>
+        <strong>IEEE 754 浮点数格式转换动画</strong>
+        <span>输入任意十进制数，逐步演示手算过程：先把数展开成二进制（整数部分除 2 取余、
+          小数部分乘 2 取整），再归一化求阶码，最后截取尾数并处理舍入进位，最终与硬件真实
+          位模式核对。</span>
+      </a>
     </section>
 
     <p class="note">建议先读 <code>docs/04/lecture_notes.md</code> 关于有效地址与加载扩展/存储截断的课堂口径，
-      再用这两个动画自己走一遍执行过程，最后对照 <code>docs/04/lab.md</code> 做实验任务。</p>
+      再用这几个动画自己走一遍执行过程，最后对照 <code>docs/04/lab.md</code> 做实验任务。</p>
   </main>
 </body>
 </html>

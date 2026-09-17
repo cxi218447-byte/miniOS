@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IEEE 754 浮点数格式动画</title>
+<style>
+:root {
+  --bg: #f7f6f2;
+  --card-bg: #ffffff;
+  --text-primary: #1f1e1b;
+  --text-secondary: #5f5e5a;
+  --text-muted: #8a8880;
+  --border: rgba(0,0,0,0.12);
+  --sign-bg: #F0997B; --sign-fg: #4A1B0C;
+  --exp-bg: #FAC775; --exp-fg: #412402;
+  --mant-bg: #5DCAA5; --mant-fg: #04342C;
+  --guard-bg: #C9A8F5; --guard-fg: #2E1065;
+  --raw-bg: #EDEBE4; --raw-fg: #1f1e1b;
+  --accent: #378ADD;
+  --danger: #E24B4A;
+  --btn-bg: transparent;
+  --btn-border: rgba(0,0,0,0.25);
+  --btn-hover: rgba(0,0,0,0.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1a17;
+    --card-bg: #242320;
+    --text-primary: #ece9e0;
+    --text-secondary: #b4b2a9;
+    --text-muted: #888780;
+    --border: rgba(255,255,255,0.14);
+    --sign-bg: #712B13; --sign-fg: #F5C4B3;
+    --exp-bg: #633806; --exp-fg: #FAC775;
+    --mant-bg: #085041; --mant-fg: #9FE1CB;
+    --guard-bg: #4C2E80; --guard-fg: #E9D8FD;
+    --raw-bg: #33322D; --raw-fg: #ece9e0;
+    --btn-border: rgba(255,255,255,0.25);
+    --btn-hover: rgba(255,255,255,0.08);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1a17;
+  --card-bg: #242320;
+  --text-primary: #ece9e0;
+  --text-secondary: #b4b2a9;
+  --text-muted: #888780;
+  --border: rgba(255,255,255,0.14);
+  --sign-bg: #712B13; --sign-fg: #F5C4B3;
+  --exp-bg: #633806; --exp-fg: #FAC775;
+  --mant-bg: #085041; --mant-fg: #9FE1CB;
+  --guard-bg: #4C2E80; --guard-fg: #E9D8FD;
+  --raw-bg: #33322D; --raw-fg: #ece9e0;
+  --btn-border: rgba(255,255,255,0.25);
+  --btn-hover: rgba(255,255,255,0.08);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.6;
+  display: flex;
+  justify-content: center;
+}
+.wrap { width: 100%; max-width: 820px; }
+h1 { font-size: 22px; font-weight: 500; margin: 0 0 0.25rem; }
+.sub { color: var(--text-secondary); font-size: 14px; margin: 0 0 1.5rem; }
+.card {
+  background: var(--card-bg);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+.controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem; }
+input[type="text"] {
+  height: 36px; width: 160px; padding: 0 10px;
+  border-radius: 8px; border: 0.5px solid var(--border);
+  background: var(--bg); color: var(--text-primary); font-size: 14px;
+}
+select {
+  height: 36px; padding: 0 8px; border-radius: 8px;
+  border: 0.5px solid var(--border); background: var(--bg); color: var(--text-primary); font-size: 14px;
+}
+button {
+  height: 36px; padding: 0 16px; border-radius: 8px;
+  border: 0.5px solid var(--btn-border); background: var(--btn-bg);
+  color: var(--text-primary); font-size: 14px; cursor: pointer;
+  transition: background 0.15s;
+}
+button:hover { background: var(--btn-hover); }
+button:active { transform: scale(0.98); }
+button.primary { border-width: 1.5px; }
+#errMsg { font-size: 13px; color: var(--danger); }
+#stepLabel { font-size: 15px; font-weight: 500; margin-bottom: 8px; min-height: 20px; }
+#stepDetail { font-size: 13px; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.7; min-height: 40px; white-space: pre-line; }
+#visualArea { margin-bottom: 1.25rem; }
+.bitrow { display: flex; gap: 2px; font-family: "SF Mono", Consolas, monospace; font-size: 13px; overflow-x: auto; }
+.bitrow.wrap { flex-wrap: wrap; row-gap: 4px; overflow-x: visible; }
+.bit {
+  width: 20px; height: 28px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; font-weight: 500;
+  transition: opacity 0.2s;
+  background: var(--raw-bg); color: var(--raw-fg);
+}
+.bit.point { width: 10px; background: transparent; color: var(--text-muted); font-weight: 700; }
+.gap6 { width: 6px; flex-shrink: 0; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); margin-bottom: 1.25rem; }
+.legend span.dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+.stepnav { display: flex; gap: 8px; align-items: center; }
+#stepIdx { font-size: 13px; color: var(--text-muted); margin-left: 8px; }
+.tablewrap { overflow-x: auto; margin: 0.5rem 0 1rem; }
+table.calc {
+  border-collapse: collapse; font-family: "SF Mono", Consolas, monospace; font-size: 12px; width: 100%;
+}
+table.calc th, table.calc td { padding: 4px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+table.calc th { color: var(--text-muted); font-weight: 500; }
+table.calc td.bitcol { color: var(--accent); font-weight: 700; }
+.note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.formula { font-family: "SF Mono", Consolas, monospace; font-size: 13px; background: var(--raw-bg); color: var(--raw-fg); padding: 8px 12px; border-radius: 8px; margin: 6px 0; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>IEEE 754 浮点数格式转换动画</h1>
+  <p class="sub">输入一个十进制数，逐步查看它如何被手工转换为二进制、求出阶码、并处理尾数，最终编码为符号位 / 指数位 / 尾数位。</p>
+  <div class="card">
+    <div class="controls">
+      <input id="numIn" type="text" value="-19.625" />
+      <select id="prec">
+        <option value="32">单精度 (32位)</option>
+        <option value="64">双精度 (64位)</option>
+      </select>
+      <button class="primary" onclick="runConv()">转换 ▶</button>
+      <span id="errMsg"></span>
+    </div>
+
+    <div id="stepLabel"></div>
+    <div id="stepDetail"></div>
+    <div id="visualArea"></div>
+
+    <div class="legend">
+      <div><span class="dot" style="background:var(--sign-bg)"></span>符号位</div>
+      <div><span class="dot" style="background:var(--exp-bg)"></span>指数位</div>
+      <div><span class="dot" style="background:var(--mant-bg)"></span>尾数位</div>
+      <div><span class="dot" style="background:var(--guard-bg)"></span>舍入用的多余位（不存储）</div>
+    </div>
+
+    <div class="stepnav">
+      <button onclick="stepBack()">上一步</button>
+      <button onclick="stepFwd()">下一步</button>
+      <span id="stepIdx"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+let steps = [];
+let curStep = -1;
+
+/* ---------- 底层：拿硬件真实结果，作为最终核对基准 ---------- */
+function toBits32(f) {
+  const buf = new ArrayBuffer(4);
+  new Float32Array(buf)[0] = f;
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 3; i >= 0; i--) bin += bytes[i].toString(2).padStart(8, '0');
+  return bin;
+}
+function toBits64(f) {
+  const buf = new ArrayBuffer(8);
+  new Float64Array(buf)[0] = f;
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 7; i >= 0; i--) bin += bytes[i].toString(2).padStart(8, '0');
+  return bin;
+}
+
+/* ---------- 渲染工具 ---------- */
+function bitCellHtml(text, opts) {
+  opts = opts || {};
+  if (opts.isPoint) return `<div class="bit point">${text}</div>`;
+  const bg = opts.bg || 'var(--raw-bg)';
+  const fg = opts.fg || 'var(--raw-fg)';
+  const dim = opts.dim ? 'opacity:.25;' : '';
+  return `<div class="bit" style="background:${bg};color:${fg};${dim}">${text}</div>`;
+}
+function buildFinalStrip(bin, ebits, mbits, highlightRange) {
+  let html = '';
+  for (let i = 0; i < bin.length; i++) {
+    const b = bin[i];
+    let bg, fg;
+    if (i === 0) { bg = 'var(--sign-bg)'; fg = 'var(--sign-fg)'; }
+    else if (i >= 1 && i <= ebits) { bg = 'var(--exp-bg)'; fg = 'var(--exp-fg)'; }
+    else { bg = 'var(--mant-bg)'; fg = 'var(--mant-fg)'; }
+    const dim = highlightRange && !(i >= highlightRange[0] && i <= highlightRange[1]);
+    html += bitCellHtml(b, { bg, fg, dim });
+    if (i === 0 || i === ebits) html += '<div class="gap6"></div>';
+  }
+  return `<div class="bitrow">${html}</div>`;
+}
+function buildRawStrip(digits, opts) {
+  opts = opts || {};
+  const pointPos = (opts.pointPos === undefined) ? null : opts.pointPos;
+  const ranges = opts.ranges || []; // [{range:[s,e], bg, fg}]
+  let html = '';
+  for (let i = 0; i <= digits.length; i++) {
+    if (pointPos !== null && i === pointPos) html += bitCellHtml('.', { isPoint: true });
+    if (i === digits.length) break;
+    let bg = 'var(--raw-bg)', fg = 'var(--raw-fg)';
+    for (const r of ranges) {
+      if (i >= r.range[0] && i <= r.range[1]) { bg = r.bg; fg = r.fg; }
+    }
+    html += bitCellHtml(digits[i], { bg, fg });
+  }
+  return `<div class="bitrow wrap">${html}</div>`;
+}
+function buildTable(headers, rows, capNote) {
+  let html = '<div class="tablewrap"><table class="calc"><thead><tr>';
+  for (const h of headers) html += `<th>${h}</th>`;
+  html += '</tr></thead><tbody>';
+  for (const row of rows) {
+    html += '<tr>';
+    for (const cell of row) html += `<td class="${cell.bit ? 'bitcol' : ''}">${cell.v}</td>`;
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+  if (capNote) html += `<div class="note">${capNote}</div>`;
+  return html;
+}
+
+/* ---------- 精确十进制 -> 二进制（BigInt，无浮点误差） ---------- */
+function parseExact(raw) {
+  const m = raw.trim().match(/^(-?)(\d+)(?:\.(\d+))?$/);
+  if (!m) return null;
+  return { neg: m[1] === '-', intStr: m[2], fracStr: m[3] || '' };
+}
+
+function computeManual(raw, ebits, mbits, bias) {
+  const p = parseExact(raw);
+  if (!p) return null;
+  const sign = p.neg ? '1' : '0';
+  const intPart = BigInt(p.intStr);
+  const isZero = intPart === 0n && (p.fracStr === '' || BigInt(p.fracStr) === 0n);
+
+  // 整数部分：除2取余
+  const intRows = [];
+  let n = intPart;
+  if (n === 0n) {
+    intRows.push({ n: 0n, q: 0n, r: 0n });
+  } else {
+    while (n > 0n) {
+      const q = n / 2n, r = n % 2n;
+      intRows.push({ n, q, r });
+      n = q;
+    }
+  }
+  const intBinary = intPart === 0n ? '0' : intRows.map(r => r.r.toString()).reverse().join('');
+
+  // 小数部分：乘2取整（精确分数运算）
+  const fracDigits = p.fracStr.length;
+  const denom = fracDigits === 0 ? 1n : 10n ** BigInt(fracDigits);
+  let cur = p.fracStr === '' ? 0n : BigInt(p.fracStr);
+  // 需要生成多少位小数部分的比特，取决于最高位 1 落在哪里：
+  // 若整数部分已经有 1，只需把小数部分补到"整数部分最高位1之后的位数 + 小数位"够 mbits+2 位（尾数+舍入位+粘滞位）；
+  // 若整数部分全 0，则要一直生成到小数部分出现第一个 1 之后再够 mbits+2 位。
+  // SAFETY_CAP 只是防止病态输入（数值绝对值极小）无限循环的兜底上限。
+  const intLeadingIdx = intBinary.indexOf('1');
+  const bitsAfterIntLeading = intLeadingIdx === -1 ? -1 : (intBinary.length - intLeadingIdx - 1);
+  const SAFETY_CAP = 4096;
+  const fracRows = [];
+  let exact = cur === 0n;
+  let fracLeadingIdx = -1;
+  for (let i = 0; i < SAFETY_CAP && cur !== 0n; i++) {
+    const before = cur;
+    cur = cur * 2n;
+    let bit;
+    if (cur >= denom) { bit = 1n; cur -= denom; } else { bit = 0n; }
+    fracRows.push({ before, doubled: before * 2n, bit, after: cur, denom });
+    if (bit === 1n && fracLeadingIdx === -1) fracLeadingIdx = fracRows.length - 1;
+    if (cur === 0n) { exact = true; break; }
+    if (intLeadingIdx !== -1) {
+      if (fracRows.length >= Math.max(0, (mbits + 2) - bitsAfterIntLeading)) break;
+    } else if (fracLeadingIdx !== -1) {
+      if (fracRows.length - fracLeadingIdx >= mbits + 2) break;
+    }
+  }
+  const fracBinary = fracRows.length ? fracRows.map(r => r.bit.toString()).join('') : '0';
+
+  const digitsStr = intBinary + fracBinary;
+  const pointPos = intBinary.length;
+
+  if (isZero) {
+    return { sign, isZero: true, intBinary, fracBinary, fracExact: exact, intRows, fracRows, denom, pointPos, digitsStr };
+  }
+
+  const leadingIndex = digitsStr.indexOf('1');
+  if (leadingIndex === -1) {
+    // 数值绝对值过小，展开的位数上限内找不到最高位 1（远超课程常见输入范围）
+    return { sign, isZero: false, intBinary, fracBinary, fracExact: exact, pointPos, digitsStr, outOfRange: true, noLeadingBit: true };
+  }
+  const e = pointPos - 1 - leadingIndex;
+  const afterLeading = digitsStr.slice(leadingIndex + 1);
+
+  let mantissaBitsRaw, roundBit = 0, sticky = 0, hasExtra = false;
+  if (afterLeading.length >= mbits) {
+    mantissaBitsRaw = afterLeading.slice(0, mbits);
+    const remaining = afterLeading.slice(mbits);
+    hasExtra = remaining.length > 0;
+    roundBit = remaining[0] === '1' ? 1 : 0;
+    const stickyFromBits = remaining.slice(1).includes('1');
+    sticky = (stickyFromBits || !exact) ? 1 : 0;
+  } else {
+    mantissaBitsRaw = afterLeading.padEnd(mbits, '0');
+  }
+
+  let roundUp = false;
+  if (roundBit === 1) {
+    roundUp = sticky ? true : (mantissaBitsRaw[mbits - 1] === '1');
+  }
+
+  let mantVal = mantissaBitsRaw.length ? BigInt('0b' + mantissaBitsRaw) : 0n;
+  let expAdj = e;
+  let carried = false;
+  if (roundUp) {
+    mantVal += 1n;
+    if (mantVal === (1n << BigInt(mbits))) { mantVal = 0n; expAdj = e + 1; carried = true; }
+  }
+  const finalMantissa = mantVal.toString(2).padStart(mbits, '0');
+  const storedExp = expAdj + bias;
+  const outOfRange = storedExp <= 0 || storedExp >= ((1 << ebits) - 1);
+  const expBinary = outOfRange ? null : storedExp.toString(2).padStart(ebits, '0');
+
+  return {
+    sign, isZero: false, intBinary, fracBinary, fracExact: exact, intRows, fracRows, denom, pointPos, digitsStr,
+    leadingIndex, e, afterLeading, mantissaBitsRaw, roundBit, sticky, hasExtra, roundUp, carried,
+    expAdj, storedExp, outOfRange, expBinary, mantissaBits: finalMantissa
+  };
+}
+
+function decStr(numer, denom) {
+  if (denom === 0n) return '0';
+  const v = Number(numer) / Number(denom);
+  return v.toFixed(6).replace(/0+$/, '').replace(/\.$/, '.0');
+}
+
+/* ---------- 组装步骤 ---------- */
+function buildSteps(raw, val, prec) {
+  const ebits = prec === '32' ? 8 : 11;
+  const mbits = prec === '32' ? 23 : 52;
+  const bias = prec === '32' ? 127 : 1023;
+  const groundTruth = prec === '32' ? toBits32(val) : toBits64(val);
+  const m = computeManual(raw, ebits, mbits, bias);
+
+  const S = [];
+
+  S.push({
+    label: '第 1 步：确定符号位',
+    detail: `数值 ${val} ${val < 0 || Object.is(val, -0) ? '为负（或负零）' : '为非负'}，符号位 = ${m.sign}（0 表示正数，1 表示负数）。`,
+    visual: buildFinalStrip(groundTruth, ebits, mbits, [0, 0])
+  });
+
+  if (m.isZero) {
+    S.push({
+      label: '第 2 步：特殊情况 —— 数值为 0',
+      detail: `0 不做归一化，IEEE 754 规定数值 0 的指数域和尾数域全部填 0（这是标准里的特殊表示，不是"算出来"的）。`,
+      visual: buildFinalStrip(groundTruth, ebits, mbits, null)
+    });
+    S.push({
+      label: '完成：完整的 IEEE 754 表示',
+      detail: `符号 ${groundTruth[0]} | 指数 ${groundTruth.slice(1, 1 + ebits)} | 尾数 ${groundTruth.slice(1 + ebits)}\n十六进制：0x${BigInt('0b' + groundTruth).toString(16).padStart(groundTruth.length / 4, '0')}`,
+      visual: buildFinalStrip(groundTruth, ebits, mbits, null)
+    });
+    return S;
+  }
+
+  if (m.outOfRange) {
+    const rangeDetail = m.noLeadingBit
+      ? `该数值的绝对值过小，展开位数远超正常范围（涉及非规格化数或直接下溢为 0 等特殊表示），不在本动画的手算步骤覆盖范围内。直接给出硬件计算的最终结果：`
+      : `该数值归一化后指数为 ${m.e}，加偏移量 ${bias} 后的存储指数为 ${m.storedExp}，超出了 ${ebits} 位指数域的常规可表示范围（涉及非规格化数 / 上溢 / 无穷大等特殊表示）。这类特殊值不在本动画的手算步骤覆盖范围内，直接给出硬件计算的最终结果：`;
+    S.push({
+      label: '范围超出本动画覆盖内容',
+      detail: rangeDetail,
+      visual: buildFinalStrip(groundTruth, ebits, mbits, null)
+    });
+    S.push({
+      label: '完成：完整的 IEEE 754 表示',
+      detail: `符号 ${groundTruth[0]} | 指数 ${groundTruth.slice(1, 1 + ebits)} | 尾数 ${groundTruth.slice(1 + ebits)}\n十六进制：0x${BigInt('0b' + groundTruth).toString(16).padStart(groundTruth.length / 4, '0')}`,
+      visual: buildFinalStrip(groundTruth, ebits, mbits, null)
+    });
+    return S;
+  }
+
+  /* ===== 阶段一：把数的二进制表达出来 ===== */
+  const absVal = Math.abs(val);
+
+  // 整数部分
+  {
+    let detail, visual;
+    if (m.intBinary === '0') {
+      detail = `整数部分是 0，转换后二进制整数部分记为 0。`;
+      visual = buildRawStrip('0', {});
+    } else {
+      const shown = m.intRows.slice(-16);
+      const rows = shown.map(r => [{ v: r.n.toString() }, { v: '÷2' }, { v: r.q.toString() }, { v: r.r.toString(), bit: true }]);
+      detail = `整数部分 ${Math.trunc(absVal)}：用"除 2 取余，从下往上读"求二进制。表格从最后一次除法往上排（余数从下往上读就是二进制的高位到低位）：`;
+      visual = buildTable(['被除数', '运算', '商', '余数(比特)'], rows,
+        m.intRows.length > 16 ? `共 ${m.intRows.length} 次除法，仅展示最后 16 行。` : '') +
+        `<div class="formula">整数部分二进制 = ${m.intBinary}</div>`;
+    }
+    S.push({ label: '第 2 步：二进制表达 —— 整数部分', detail, visual });
+  }
+
+  // 小数部分
+  {
+    const fracPart = absVal - Math.trunc(absVal);
+    let detail, visual;
+    if (m.fracRows.length === 0) {
+      detail = `小数部分是 0，转换后二进制小数部分记为 0。`;
+      visual = buildRawStrip('0', {});
+    } else {
+      const shown = m.fracRows.slice(0, 16);
+      const rows = shown.map(r => [
+        { v: decStr(r.before, r.denom) },
+        { v: '×2' },
+        { v: decStr(r.doubled, r.denom) },
+        { v: r.bit.toString(), bit: true },
+        { v: decStr(r.after, r.denom) }
+      ]);
+      const capNote = !m.fracExact
+        ? `该小数在二进制下是无限循环小数（十进制分母含 5 的因子），已生成 ${m.fracRows.length} 位用于后续对齐尾数位数与舍入判断，表格仅展示前 16 位。`
+        : (m.fracRows.length > 16 ? `共 ${m.fracRows.length} 位，仅展示前 16 位。` : '恰好能整除，二进制小数在此终止（精确值）。');
+      detail = `小数部分 ${fracPart.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')}：用"乘 2 取整数位，剩余小数部分继续乘 2"求二进制，从上往下读比特：`;
+      visual = buildTable(['当前小数', '运算', '结果', '整数位(比特)', '剩余小数'], rows, capNote) +
+        `<div class="formula">小数部分二进制 = 0.${m.fracBinary}${m.fracExact ? '' : '…'}</div>`;
+    }
+    S.push({ label: '第 3 步：二进制表达 —— 小数部分', detail, visual });
+  }
+
+  // 合并
+  {
+    const detail = `把整数部分和小数部分拼起来，得到该数值（未加符号）的原始二进制表达：`;
+    const visual = buildRawStrip(m.digitsStr, { pointPos: m.pointPos }) +
+      `<div class="formula">原始二进制 = ${m.intBinary}.${m.fracBinary}${m.fracExact ? '' : '…'}</div>` +
+      (m.fracExact ? '' : `<div class="note">小数部分无限循环，这里只保留了参与后续计算的有效位。</div>`);
+    S.push({ label: '第 4 步：二进制表达 —— 合并', detail, visual });
+  }
+
+  /* ===== 阶段二：阶码的求取 ===== */
+  {
+    const detail = `在原始二进制里找到最高位的 1（第一个 1），把小数点移到它右边一位，写成 1.xxxx × 2^e 的规格化形式。\n最高位 1 出现在第 ${m.leadingIndex + 1} 位，它在原始二进制里代表的位权是 2^${m.e}，所以归一化后 e = ${m.e}。`;
+    const visual = buildRawStrip(m.digitsStr, {
+      pointPos: m.pointPos,
+      ranges: [{ range: [m.leadingIndex, m.leadingIndex], bg: 'var(--accent)', fg: '#fff' }]
+    }) + `<div class="note">高亮的位就是最高位 1，也就是规格化后"1."前面的那个 1。</div>` +
+      buildRawStrip(m.digitsStr, {
+        pointPos: m.leadingIndex + 1,
+        ranges: [{ range: [m.leadingIndex, m.leadingIndex], bg: 'var(--accent)', fg: '#fff' }]
+      }) + `<div class="formula">1.${m.afterLeading || '0'}${m.fracExact ? '' : '…'} × 2^${m.e}</div>`;
+    S.push({ label: '第 5 步：阶码求取 —— 归一化找 e', detail, visual });
+  }
+
+  {
+    const detail = `${prec === '32' ? '单精度' : '双精度'}的指数偏移量（bias）= ${bias}。存储的指数域不能直接存 e（e 可能是负数），而是存 "e + 偏移量"：\ne + 偏移量 = ${m.e} + ${bias} = ${m.storedExp}\n再把 ${m.storedExp} 转成 ${ebits} 位无符号二进制，就是指数域：${m.expBinary}`;
+    const bin = m.sign + m.expBinary + '0'.repeat(mbits);
+    const visual = buildFinalStrip(bin, ebits, mbits, [1, ebits]);
+    S.push({ label: '第 6 步：阶码求取 —— 加偏移量并转二进制', detail, visual });
+  }
+
+  /* ===== 阶段三：尾数的处理 ===== */
+  {
+    let detail, visual;
+    const kept = m.mantissaBitsRaw;
+    if (!m.hasExtra) {
+      detail = `规格化后小数点右边的位（隐含的最高位 1 不存储）一共只有 ${m.afterLeading.length} 位，不够 ${mbits} 位，右边直接补 0 即可，不需要舍入：`;
+      visual = buildRawStrip(kept, {
+        ranges: [{ range: [0, mbits - 1], bg: 'var(--mant-bg)', fg: 'var(--mant-fg)' }]
+      }) + `<div class="formula">尾数域 = ${kept}</div>`;
+    } else {
+      const ruleText = m.roundBit === 0
+        ? '多余部分第一位（round 位）= 0，说明超出部分小于半个末位，直接舍去，不进位。'
+        : (m.sticky
+          ? '多余部分第一位（round 位）= 1，且后面还有非 0 的位（sticky 位 = 1），说明超出部分大于半个末位，需要向上进位。'
+          : `多余部分第一位（round 位）= 1，后面全为 0（恰好是半个末位）：按"就近舍入、相等时舍入到偶数"规则，看尾数最后一位是 ${kept[mbits - 1]}，${kept[mbits - 1] === '1' ? '为奇数，向上进位使其变为偶数' : '已经是偶数，不进位'}。`);
+      detail = `规格化后小数点右边超过 ${mbits} 位，只能保留前 ${mbits} 位存入尾数域，多出来的位要参与"舍入"判断：\n${ruleText}`;
+      const extra = m.afterLeading.slice(mbits, mbits + 8);
+      visual = buildRawStrip(kept + extra, {
+        ranges: [
+          { range: [0, mbits - 1], bg: 'var(--mant-bg)', fg: 'var(--mant-fg)' },
+          { range: [mbits, mbits + extra.length - 1], bg: 'var(--guard-bg)', fg: 'var(--guard-fg)' }
+        ]
+      }) + `<div class="note">绿色是保留进尾数域的 ${mbits} 位，紫色是用于舍入判断、不会被存储的多余位（超出部分仅展示前几位）。</div>` +
+        `<div class="formula">${m.roundUp ? '进位后' : '舍去多余位后'}尾数域 = ${m.mantissaBits}${m.carried ? '（进位导致尾数溢出，已向指数 +1 进位，见上一步的 e 调整）' : ''}</div>`;
+    }
+    S.push({ label: '第 7 步：尾数处理 —— 截取与舍入', detail, visual });
+  }
+
+  {
+    const manualBin = m.sign + m.expBinary + m.mantissaBits;
+    const consistent = manualBin === groundTruth;
+    const detail = `符号 ${groundTruth[0]} | 指数 ${groundTruth.slice(1, 1 + ebits)} | 尾数 ${groundTruth.slice(1 + ebits)}\n十六进制：0x${BigInt('0b' + groundTruth).toString(16).padStart(groundTruth.length / 4, '0')}\n${consistent
+      ? '✓ 手算结果与硬件浮点转换结果一致。'
+      : '（手算结果与硬件结果存在细微差异，通常是十进制先转换为双精度再降精度产生的"二次舍入"，属于边缘情况，以硬件结果为准。）'}`;
+    S.push({ label: '完成：完整的 IEEE 754 表示', detail, visual: buildFinalStrip(groundTruth, ebits, mbits, null) });
+  }
+
+  return S;
+}
+
+function runConv() {
+  document.getElementById('errMsg').textContent = '';
+  const raw = document.getElementById('numIn').value.trim();
+  const val = Number(raw);
+  if (raw === '' || isNaN(val) || !/^-?\d+(\.\d+)?$/.test(raw)) {
+    document.getElementById('errMsg').textContent = '请输入一个十进制数字（不支持科学计数法）';
+    return;
+  }
+  const prec = document.getElementById('prec').value;
+  steps = buildSteps(raw, val, prec);
+  curStep = 0;
+  showStep();
+}
+
+function showStep() {
+  if (curStep < 0 || curStep >= steps.length) return;
+  const s = steps[curStep];
+  document.getElementById('stepLabel').textContent = s.label;
+  document.getElementById('stepDetail').textContent = s.detail;
+  document.getElementById('stepIdx').textContent = `${curStep + 1} / ${steps.length}`;
+  document.getElementById('visualArea').innerHTML = s.visual;
+}
+function stepFwd() { if (curStep < steps.length - 1) { curStep++; showStep(); } }
+function stepBack() { if (curStep > 0) { curStep--; showStep(); } }
+
+runConv();
+</script>
+</body>
+</html>
