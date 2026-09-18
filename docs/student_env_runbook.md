@@ -208,6 +208,20 @@ sudo apt install -y make qemu-system-misc \
 - [`manual_wsl_ubuntu22_toolchain_build.md`](manual_wsl_ubuntu22_toolchain_build.md)：
   留在现有 22.04 上，自己装预编译工具链 + 编译 QEMU。
 
+### 5.1 第 5 次课额外需要：`qemu-user`（用户态模拟）
+
+前面装的 `qemu-system-misc` 提供的是 `qemu-system-loongarch64`——**全系统模拟**，
+miniOS 实验全程用这个。第 5 次课有两个**独立于 miniOS 仓库**的纯汇编小任务，用的
+是另一个工具 `qemu-loongarch64`——**用户态模拟**，只运行单个可执行文件，不用自己
+写启动代码/UART 驱动，直接用 Linux 系统调用打印结果。目前只有第 5 次课需要它：
+
+```bash
+sudo apt install -y qemu-user
+which qemu-loongarch64
+```
+
+能打印出路径就说明装好了。具体怎么用见 `docs/05/lab.md`。
+
 ## 6. 检出本次课代码 + 编译运行（标准闭环）
 
 ```bash

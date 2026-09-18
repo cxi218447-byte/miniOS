@@ -15,6 +15,7 @@
 - [实验指导书 PDF](04_lab.pdf)
 - [课堂 PPT 04_load_store_course.pptx](04_load_store_course.pptx)
 - [LL/SC 与 DBAR 交互动画](animations/llsc_dbar_demo.html)
+- [IEEE 754 浮点数格式转换动画](animations/ieee754_animation.html)（十进制 → 二进制展开 → 阶码 → 尾数舍入，逐步演示）
 
 ## 内容层级
 

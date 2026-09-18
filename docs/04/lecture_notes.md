@@ -60,6 +60,8 @@
 5. 对比 `movgr2fr/movfr2gr`、`ffint/ftint` 和 `fcvt`。
 6. 完成实验 Task 5–7，核对浮点串口输出并完成本次课验收。
 
+课堂演示可打开 [`animations/ieee754_animation.html`](animations/ieee754_animation.html)：输入 `5.75` 等示例数值，逐步点开"下一步"演示整数/小数部分展开为二进制、归一化求阶码、尾数截取与舍入（含舍入进位）的完整手算过程，再与串口 `0x40800000` 等真实位模式核对。
+
 ## 1. 本课目标
 
 学生完成本次课后应能：
