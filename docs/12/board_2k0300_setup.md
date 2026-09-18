@@ -1,10 +1,11 @@
-# 2K0300 开发板上手指南（学生版：接线→装驱动→串口连通→改代码→编译→上板）
+# 2K0300 开发板上手指南（学生版：接线→装驱动→串口连通→改代码→编译→上板→命令行 shell）
 
-> 面向**手上有真实龙芯 2K0300（先锋派）开发板**的同学（本学期人手一块，
-> Task4 是必做项，见 `docs/12/lab.md`）。从这份文档开始，从第 11 次课的
+> 本学期人手一块真实龙芯 2K0300（先锋派）开发板，这是第 12 次课（板级
+> 迁移 + 综合实验：从 miniOS 到 Agent OS）的实验指导书。从第 11 次课的
 > 检查点（`12-board-agent-demo`）出发，一步步把代码改成 2K0300 版本、编译、
-> 送上板、跑起来。跟着做，照抄这里给的代码和命令，能编译过、能在串口里
-> 看到 week01-08 的验收输出就算完成 Task4。
+> 送上板、跑起来（§0-7），再补一个命令行 shell 把板级迁移之外的工作量
+> 填满 4 学时（§8-9）。跟着做，照抄这里给的代码和命令，能编译过、能在
+> 串口里看到 week01-08 的验收输出就算完成板级迁移部分。
 
 ## 0. 需要准备的资料/软件
 
@@ -170,11 +171,22 @@ miniOS 上板实验，清完屏后记得 `reboot`，这次开机时按住 `m`（
 
 ## 4. 把仓库改成"平台可插拔"结构
 
-从第 11 次课检查点出发（`git fetch --tags && git switch -c my-12-lab
-12-board-agent-demo`，`docs/12/lab.md` §2.2 已经讲过）。目标：
-`make`（不带 `PLATFORM` 参数）行为跟之前完全一样，`make PLATFORM=2k0300`
-编译出真机能跑的版本。照下面的步骤改，改完的结构和值都是真机实测跑通过的，
-直接抄。
+**先建立本次课的个人实验分支**（每次课都要重新做一次，不是学期初做过
+就行——教师每次课都会发布新的检查点 tag，哪怕上次已经 `fetch` 过，这次
+开始前也要重新 `git fetch --tags`，否则要么找不到 tag，要么代码是过期
+的）：
+
+```bash
+git fetch --tags
+git switch -c my-12-lab 12-board-agent-demo
+```
+
+`my-12-lab` 是本地分支，远程没有同名分支是正常现象。若教师尚未发布
+tag，以课堂指定 checkpoint 为准。
+
+有了分支之后，目标是：`make`（不带 `PLATFORM` 参数）行为跟之前完全
+一样，`make PLATFORM=2k0300` 编译出真机能跑的版本。照下面的步骤改，
+改完的结构和值都是真机实测跑通过的，直接抄。
 
 ### 4.1 拆分链接脚本
 
@@ -452,7 +464,9 @@ go 0x9000000000200000
 出现一段像固件级"未处理异常"的转储（不是我们自己代码打印的格式）——
 这是已知的、目前还没解决的边界（week09 的 `break` 异常测试在真机上会
 碰到这个），不用觉得是自己哪里做错了，也不要求解决。跑到这里、能复现、
-截图/复制这段输出就算完成 Task4 该做的部分。**
+截图/复制这段输出就算完成板级迁移这部分该做的。**（这是在还没做 §8/§9
+之前、代码里仍然自动触发一次 `break` 时的表现——做完 §9 之后这里的行为
+会变，能看到命令行提示符而不是卡住，见 §9。）
 
 不管出现哪种情况，**都不会有硬件损坏风险**——`go` 只是让 CPU 跳去执行内存
 里的代码，U-Boot 本身存在 Flash/EMMC 里，这个操作根本碰不到它，跑飞了
@@ -467,4 +481,429 @@ go 0x9000000000200000
 | 传输成功（字节数对上了），但 `go` 之后完全无输出 | 检查 §4.1/§4.2 的地址和代码是不是照抄对了，特别是 `include/platform/2k0300.h` 和 `kernel/linker_2k0300.ld` 里的那两个地址常量 |
 | 有输出但是乱码 | 波特率是不是设成了 115200；`UART_LSR_OFF`/`UART_TX_EMPTY_MASK` 是不是抄对了 |
 
-回到 `docs/12/lab.md` Task4，把 `week01-08` 的完整串口输出记录下来交上去。
+把 `week01-08` 的完整串口输出记录下来交上去。
+
+## 8. 命令行 shell（板级迁移本身工作量填不满 4 学时，这一步补上）
+
+先在 QEMU 里把这几步做完、验证过，再进 §9 挪到真机能摸到的位置——
+QEMU 快得多，出问题也容易看清是哪一步。
+
+### 8.1 最小内核堆分配器
+
+新建 `include/kmalloc.h`：
+
+```c
+#ifndef MINIOS_KMALLOC_H
+#define MINIOS_KMALLOC_H
+
+#include "types.h"
+
+void *kmalloc(size_t size);
+void kfree(void *ptr);
+void kmalloc_stats(unsigned long *used, unsigned long *capacity,
+                    unsigned long *free_blocks);
+
+#endif
+```
+
+新建 `kernel/kmalloc.c`：
+
+```c
+#include "kmalloc.h"
+
+#define HEAP_SIZE (16 * 1024)
+#define ALIGN_UP(x, a) (((x) + ((a) - 1)) & ~((a) - 1))
+
+struct block_header {
+    size_t size;               /* 这块空间的大小，不含 header 本身 */
+    int free;                  /* 1 = 在空闲链表里，可以被复用 */
+    struct block_header *next; /* 仅在 free==1 时有意义 */
+};
+
+static unsigned char g_heap[HEAP_SIZE];
+static unsigned long g_bump = 0;           /* 堆里"从未分配过"区域的起始偏移 */
+static struct block_header *g_free_list = 0;
+
+static struct block_header *find_free_block(size_t size)
+{
+    struct block_header *cur = g_free_list;
+    struct block_header *prev = 0;
+
+    while (cur) {
+        if (cur->size >= size) {
+            if (prev) {
+                prev->next = cur->next;
+            } else {
+                g_free_list = cur->next;
+            }
+            cur->free = 0;
+            return cur;
+        }
+        prev = cur;
+        cur = cur->next;
+    }
+    return 0;
+}
+
+void *kmalloc(size_t size)
+{
+    struct block_header *blk;
+    unsigned long need;
+
+    if (size == 0) {
+        return 0;
+    }
+
+    size = ALIGN_UP(size, 8);
+
+    blk = find_free_block(size);
+    if (blk) {
+        return (void *)(blk + 1);
+    }
+
+    need = sizeof(struct block_header) + size;
+    if (g_bump + need > HEAP_SIZE) {
+        return 0; /* 堆用尽，教学最小实现：不做扩容/换页，直接失败 */
+    }
+
+    blk = (struct block_header *)(g_heap + g_bump);
+    blk->size = size;
+    blk->free = 0;
+    blk->next = 0;
+    g_bump += need;
+
+    return (void *)(blk + 1);
+}
+
+void kfree(void *ptr)
+{
+    struct block_header *blk;
+
+    if (!ptr) {
+        return;
+    }
+
+    blk = (struct block_header *)ptr - 1;
+    blk->free = 1;
+    blk->next = g_free_list;
+    g_free_list = blk;
+}
+
+void kmalloc_stats(unsigned long *used, unsigned long *capacity,
+                    unsigned long *free_blocks)
+{
+    struct block_header *cur;
+    unsigned long n = 0;
+
+    if (used) {
+        *used = g_bump;
+    }
+    if (capacity) {
+        *capacity = HEAP_SIZE;
+    }
+    if (free_blocks) {
+        for (cur = g_free_list; cur; cur = cur->next) {
+            n++;
+        }
+        *free_blocks = n;
+    }
+}
+```
+
+堆本体是一段静态数组（不依赖 MMU/分页，跟 `boot_stack` 是同一类"编译期
+留好一块内存"的思路）。`kmalloc` 优先从空闲链表里找能复用的旧块
+（first-fit，够用就行，不求最优），找不到再从"从未分配过"的区域切新的。
+**不做相邻空闲块合并（coalescing）**——这是有意留下的真实局限，长时间
+小块分配/释放会产生碎片，先把"能分配、能回收复用"这条链路跑通。
+
+`Makefile` 的 `SRCS_C` 列表里加一行 `kernel/kmalloc.c`。
+
+### 8.2 异常分类
+
+`kernel/exception.c` 在已有的 `exception_handler` 里，把 `ESTAT.Ecode`
+翻译成人能看懂的名字：
+
+```c
+#define ECODE_ADE 0x8  /* 地址错误：取指/访存地址不合法 */
+#define ECODE_ALE 0x9  /* 地址不对齐：访存地址没按指令要求的边界对齐 */
+#define ECODE_SYS 0xb  /* 系统调用：syscall 指令主动触发 */
+#define ECODE_BRK 0xc  /* 断点：break 指令主动触发 */
+#define ECODE_INE 0xd  /* 非法指令：指令编码不属于任何已定义指令 */
+
+static const char *ecode_name(unsigned long ecode)
+{
+    switch (ecode) {
+    case ECODE_ADE: return "ADE(地址错误)";
+    case ECODE_ALE: return "ALE(地址不对齐)";
+    case ECODE_SYS: return "SYS(系统调用)";
+    case ECODE_BRK: return "BRK(断点)";
+    case ECODE_INE: return "INE(非法指令)";
+    default:        return "未分类";
+    }
+}
+```
+
+`exception_handler` 原来直接打印 `[exception] ESTAT=0x...` 的地方，改成
+先打印 `ecode_name(ecode)`：
+
+```c
+printk("[exception] ");
+printk(ecode_name(ecode));
+printk(" ESTAT=0x");
+printk_hex(estat);
+printk(" ERA=0x");
+printk_hex(era);
+printk("\n");
+```
+
+### 8.3 `uart_getc` + 命令行循环
+
+之前的课只教过 `uart_putc`（发送），没教过接收。`include/uart.h` 加一行
+声明：
+
+```c
+char uart_getc(void);
+```
+
+`include/platform/qemu_virt.h` 和 `include/platform/2k0300.h` 各加一行
+（16550 标准 LSR bit0=接收数据就绪）：
+
+```c
+#define UART_RX_READY_MASK     0x01
+```
+
+`kernel/printk.c` 补实现：
+
+```c
+char uart_getc(void)
+{
+    volatile unsigned char *uart = (volatile unsigned char *)UART0_BASE;
+
+    while ((uart[UART_LSR_OFF] & UART_RX_READY_MASK) == 0) {
+    }
+
+    return (char)(*uart);
+}
+```
+
+跟 `uart_putc` 等 `TX_EMPTY` 位是对称的写法：等"接收数据就绪"位置位，
+再从数据寄存器（跟 `uart_putc` 写的是同一个偏移，16550 里发送/接收共用
+一个地址，读为 RBR、写为 THR）读一个字节返回。
+
+命令行循环、内置命令处理函数，`kernel/main.c` 里 `kernel_main` 前面加：
+
+```c
+static void shell_meminfo(void)
+{
+    unsigned long used, capacity, free_blocks;
+
+    kmalloc_stats(&used, &capacity, &free_blocks);
+    printk("used=");
+    print_i64_dec((long)used);
+    printk(" capacity=");
+    print_i64_dec((long)capacity);
+    printk(" free_blocks=");
+    print_i64_dec((long)free_blocks);
+    printk("\n");
+}
+
+static void crash_sys(void)
+{
+    printk("triggering SYS (syscall instruction) ...\n");
+    __asm__ volatile("syscall 0");
+    printk("resumed after SYS\n");
+}
+
+static void crash_brk(void)
+{
+    printk("triggering BRK (break instruction) ...\n");
+    __asm__ volatile("break 0");
+    printk("resumed after BRK\n");
+}
+
+static void crash_ine(void)
+{
+    printk("triggering INE (illegal instruction) ...\n");
+    __asm__ volatile(".word 0xffffffff");
+    printk("resumed after INE\n");
+}
+
+static void shell_crash(const char *arg)
+{
+    if (strcmp(arg, "sys") == 0) {
+        crash_sys();
+    } else if (strcmp(arg, "brk") == 0) {
+        crash_brk();
+    } else if (strcmp(arg, "ine") == 0) {
+        crash_ine();
+    } else {
+        printk("usage: crash <sys|brk|ine>\n");
+    }
+}
+
+static int shell_read_line(char *buf, int maxlen)
+{
+    int n = 0;
+    char c;
+
+    for (;;) {
+        c = uart_getc();
+
+        if (c == '\r' || c == '\n') {
+            uart_putc('\r');
+            uart_putc('\n');
+            break;
+        }
+
+        if (c == 0x7f || c == 0x08) { /* Backspace/Delete：退一格 */
+            if (n > 0) {
+                n--;
+                printk("\b \b");
+            }
+            continue;
+        }
+
+        if (n < maxlen - 1) {
+            buf[n++] = c;
+            uart_putc(c); /* 本地回显：QEMU -serial stdio 不会自动回显 */
+        }
+    }
+
+    buf[n] = '\0';
+    return n;
+}
+
+static void shell_dispatch(char *line)
+{
+    char *cmd = line;
+    char *arg;
+
+    arg = line;
+    while (*arg && *arg != ' ') {
+        arg++;
+    }
+    if (*arg == ' ') {
+        *arg = '\0';
+        arg++;
+        while (*arg == ' ') {
+            arg++;
+        }
+    }
+
+    if (cmd[0] == '\0') {
+        return;
+    }
+
+    if (strcmp(cmd, "help") == 0) {
+        printk("commands: help, echo <text>, meminfo, crash <sys|brk|ine>\n");
+    } else if (strcmp(cmd, "echo") == 0) {
+        printk(arg);
+        printk("\n");
+    } else if (strcmp(cmd, "meminfo") == 0) {
+        shell_meminfo();
+    } else if (strcmp(cmd, "crash") == 0) {
+        shell_crash(arg);
+    } else {
+        printk("unknown command: ");
+        printk(cmd);
+        printk(" (try 'help')\n");
+    }
+}
+```
+
+`kernel_main` 末尾原来的 `while (1) { idle }` 换成：
+
+```c
+printk("week12-shell check done\n");
+for (;;) {
+    char line[64];
+
+    printk("> ");
+    shell_read_line(line, sizeof(line));
+    shell_dispatch(line);
+}
+```
+
+**验收**：`make run` 后在 QEMU 里能交互式敲 `help`/`echo <text>`/
+`meminfo`/`crash <sys|brk|ine>`，行为符合预期（shell 是死循环，
+`week12-shell check done` 只在进入循环前打印一次）。
+
+## 9. 把 shell 挪到真机安全触发位置
+
+这一步不是新写算法，是调整**已有代码摆放的位置** + 补一个小命令，
+但决定 shell 能不能在真机上真正摸到。
+
+`exception_init()` 本身很安全，只是把处理函数地址写进 `CSR.EENTRY`，
+不会主动触发任何异常/中断。**真正危险的是"真的撞出一次异常或中断"**
+——2K0300 真机上一旦发生（不限于 `break`，定时器 tick 走的也是同一条
+入口路径，同样会卡住），会卡进一段固件级的"未处理异常"转储里，回不来
+了，就是 §7 记录的那个已知边界。
+
+`kernel_main` 里 `week08-uart-syscall check done` 之后，原来的写法是
+`exception_init()` 后紧跟着自动 `break 0`（week09 demo）、再自动使能
+一次定时器中断（week11 demo），最后才轮到 §8 写的 shell——真机上代码
+执行到自动 `break` 那一步就已经卡住，shell 永远排不上号。
+
+**改法**：把这两段自动触发的代码整段删掉，`exception_init()` 打印完
+确认信息之后**直接**进入 shell 循环：
+
+```c
+printk("week08-uart-syscall check done\n");
+
+exception_init();
+printk("exception_init: EENTRY set to exception_entry\n");
+
+/* week09 的 break、week11 的定时器不再自动跑，改成命令触发 */
+
+printk("week12-shell check done\n");
+for (;;) {
+    char line[64];
+
+    printk("> ");
+    shell_read_line(line, sizeof(line));
+    shell_dispatch(line);
+}
+```
+
+week09 的 `break` 不用另外补代码——本来就是 `crash brk` 做的事，§8.3
+已经写好了，删掉自动触发那两行，敲 `crash brk` 一样能验证到。
+
+week11 的定时器需要补一个新命令 `timer`，在 `shell_dispatch` 里加一个
+分支，处理函数：
+
+```c
+static void shell_timer(void)
+{
+    const unsigned long TIMER_COUNT = 0x1000000UL;
+    /*
+     * irq_ticks() 是全局递增计数器，不会自动清零——如果直接写
+     * while (irq_ticks() < 5)，这个命令敲第二次时计数器早就超过 5
+     * 了，会立刻返回、什么都等不到。记下调用这一刻的读数，用这次
+     * 调用前后的差值跟 5 比较，才能保证每次敲都等到 5 个新 tick。
+     */
+    unsigned long start = irq_ticks();
+
+    timer_init(TIMER_COUNT);
+    printk("timer_init: periodic timer interrupt enabled\n");
+    while (irq_ticks() - start < 5) {
+        __asm__ volatile("idle 0");
+    }
+    timer_stop();
+    printk("collected 5 timer ticks via interrupt, timer_stop() called\n");
+}
+```
+
+`shell_dispatch` 加一行 `else if (strcmp(cmd, "timer") == 0) { shell_timer(); }`，
+`help` 的输出也把 `timer` 加进去。
+
+改完之后 QEMU 上重新走一遍全部验收，确认输出没有变化（只是触发方式从
+"自动"变成"敲命令触发"）；真机重新编译、传输、`go`，这次预期能看到
+week01-08 输出之后紧接着出现 `week12-shell check done` 和交互提示符，
+可以真的在真机上敲 `help`/`echo`/`meminfo`（`crash`/`timer` 一旦真的
+触发异常/中断，大概率还是会撞上 §7 的已知边界，这属于预期内）。
+
+**真机上一条一条手动敲回车，不要一次粘贴多行**——`uart_getc` 这个最小
+实现没有流控，一次涌进一长串字符容易丢字节、命令粘连成乱码，粘贴前如果
+开着中文输入法，候选框残留文字也可能混进剪贴板，不是代码写错了。
+
+把 `week01-08` 的完整串口输出记录下来交上去。
