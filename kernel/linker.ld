@@ -21,6 +21,10 @@ SECTIONS
         *(.data .data.*)
     }
 
+    .got : ALIGN(8) {
+        *(.got .got.*)
+    }
+
     __bss_start = .;
     .bss : ALIGN(4K) {
         *(.bss .bss.*)
