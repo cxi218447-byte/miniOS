@@ -92,6 +92,8 @@ include/uart.h
 kernel/linker.ld
 kernel/printk.c
 boot/start.S
+kernel/exception.c        （Task5.2 异常分类）
+include/kmalloc.h、kernel/kmalloc.c   （Task5.1，需新建）
 （综合展示阶段：按选题追加全课程相关模块）
 ```
 
@@ -150,18 +152,78 @@ week09 卡住、把那段输出截下来就算完成这部分。
 
 ## 5. 单元二：综合展示（第 3–4 学时）
 
-### Task5 选题
+### Task5 命令行 shell 骨架（必做）
 
-- 三选一或组合：A 启动与服务 / B 板级迁移（可直接复用单元一成果）/ C Agent Runtime 雏形。
+板级迁移本身工作量填不满 4 学时，这个 Task 把"内核还能再补哪些功能"落成
+一个所有人都做、但支持的命令集可深可浅的具体产出：一个跑在 miniOS 里的
+最小命令行 shell。做完这个 Task 才有东西可以在 Task6 的展示里现场敲。
 
-### Task6 演示准备
+**Task5.1 最小内核堆分配器**
 
+实现 `kmalloc`/`kfree`，接口：
+
+```c
+void *kmalloc(size_t size);
+void kfree(void *ptr);
+void kmalloc_stats(unsigned long *used, unsigned long *capacity,
+                    unsigned long *free_blocks);
+```
+
+- 堆本体用一段静态数组（不依赖 MMU/分页，跟 `boot_stack` 是同一类"编译期
+  留好一块内存"的思路），维护一个"从未分配过区域"的位置指针。
+- 每块分配出去的内存前面放一个小 header（至少记录大小），`kfree` 时靠
+  指针减法找回 header，挂进一条空闲链表。
+- `kmalloc` 优先从空闲链表里找能复用的旧块（大小够用即可，不要求最优），
+  找不到再从"从未分配过"的区域切新的。
+- 不要求写相邻空闲块合并（coalescing）——这是有意留下的真实局限，先把
+  "能分配、能回收复用"这条链路跑通即可。
+
+**Task5.2 异常分类**
+
+在第 9–11 次课已有的 `exception_handler` 基础上，把 `ESTAT.Ecode` 翻译成
+人能看懂的名字（至少覆盖 ADE/ALE/SYS/BRK/INE 这 5 种，编码查 LoongArch
+参考手册异常编码表），打印格式类似 `[exception] BRK(断点) ESTAT=0x... ERA=0x...`。
+
+**Task5.3 命令行循环**
+
+之前的课只教过 `uart_putc`（发送），没教过接收——这里先补一个 `uart_getc`：
+
+```c
+char uart_getc(void);
+```
+
+跟 `uart_putc` 等 `LSR` 的 TX_EMPTY 位是对称的思路：等 `LSR` 的
+"接收数据就绪"位（16550 标准里通常是 bit0，`LSR_DATA_READY_MASK
+0x01`）置位，再从数据寄存器（跟 `uart_putc` 写的是同一个偏移，16550
+里发送/接收共用一个地址，读为 RBR、写为 THR）读一个字节返回。
+
+有了 `uart_getc`，写一个死循环：从 UART 逐字符读，攒成一行（回车结束）
+→ 按空格切成命令名+参数 → 按命令名分发到对应处理函数 → 执行完打印结果
+→ 回到读下一行。至少内置这 4 个命令：
+
+| 命令 | 行为 |
+|---|---|
+| `help` | 列出当前支持的命令名 |
+| `echo <text>` | 原样打印 `<text>` |
+| `meminfo` | 调 `kmalloc_stats`，打印已用/容量/空闲块数 |
+| `crash <ade\|ale\|sys\|brk\|ine>` | 按参数触发对应异常，验证 Task5.2 的分类打印 |
+
+**验收标准**：shell 循环开始前（进入第一次读命令之前）打印一次
+`week12-shell check done`，之后 `make run` 能在 QEMU 串口交互式敲上面
+4 个命令，行为符合预期（shell 循环本身不退出，这条打印只在启动时出现
+一次，不是每条命令都打印）。板端能跑通算加分项，不强制——`crash` 触发
+的异常路径在真机上可能撞上 Task4 里记录的 week09 已知边界，不是这个
+Task 要解决的问题。
+
+### Task6 选题与演示准备
+
+- 三选一或组合：A 启动与服务 / B 板级迁移（可直接复用单元一成果）/ C Agent Runtime 雏形（可直接复用 Task5 的 shell 作为雏形骨架）。
 - 5–8 分钟讲述稿：主线三阶段 + 现场讲解 4 类点（启动路径、一条运算或访存指令、一个循环或调用、一个系统点）。
 - 至少脱稿讲清 `_start` 的四行核心指令，及其回连的课次（讲义 §5.2）。
 
 ### Task7 运行证据
 
-- 提交真实输出/板级记录/调试摘录（可截断，不可编造）。
+- 提交真实输出/板级记录/调试摘录（可截断，不可编造），含 Task5 shell 的交互记录。
 
 ### Task8 展望
 
@@ -174,6 +236,7 @@ week09 卡住、把那段输出截下来就算完成这部分。
 - 报告含架构图与汇编注释
 - 差异表完整，移植步骤可执行
 - 能说明：`make` 须在 WSL/Linux 执行，不能在 Windows PowerShell 直接执行
+- Task5 命令行 shell 能跑通，至少 `help`/`echo`/`meminfo`/`crash` 四个内置命令行为正确
 
 ## 7. 实验报告要求
 
@@ -195,11 +258,13 @@ week09 卡住、把那段输出截下来就算完成这部分。
 2. 乱码优先怀疑什么？教学内核是否开 MMU？
 3. 从 miniOS 到通用 OS 你认为最关键的下一步？
 4. 不可信技能需要的最小隔离是什么？
+5. `kmalloc` 目前不做相邻空闲块合并，长时间分配/释放会有什么后果？
 
 ## 10. 提交清单
 
 - [ ] 实验报告（PDF/Markdown）
 - [ ] 关键输出摘录（含板级/QEMU 对照）
+- [ ] Task5 shell 交互记录（至少 4 个内置命令的真实输出）
 - [ ] 综合展示讲述稿要点
 - [ ] 需要提交的代码补丁或笔记（按教师要求）
 
