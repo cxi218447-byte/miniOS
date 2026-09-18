@@ -862,6 +862,125 @@ for (;;) {
 `meminfo`/`crash <sys|brk|ine>`，行为符合预期（shell 是死循环，
 `week12-shell check done` 只在进入循环前打印一次）。
 
+### 8.4 把 `echo` 的动作函数也改成汇编（示例：从 C 到汇编的常见踩坑）
+
+到 8.3 为止，`help`/`echo`/`meminfo`/`crash` 这几个命令"识别"命令名靠
+的是 `strcmp`（第 7 次课已经是汇编），但每个命令"做什么"（动作函数）
+还都是 C。这一节把 `echo` 的动作函数改写成汇编，顺便把一个真实会踩的
+坑和排查过程走一遍——这个坑本身比"照抄能跑的代码"更值得体会。
+
+**目标接口**：把 `shell_dispatch` 里内联的
+
+```c
+} else if (strcmp(cmd, "echo") == 0) {
+    printk(arg);
+    printk("\n");
+}
+```
+
+改成调用一个汇编函数：
+
+```c
+} else if (strcmp(cmd, "echo") == 0) {
+    cmd_echo(arg);
+}
+```
+
+`kernel/main.c` 顶部（其它 `static` 辅助函数附近）加一行声明：
+
+```c
+/* echo 命令的动作函数，实现见 lib/shell_cmds.S */
+extern void cmd_echo(const char *arg);
+```
+
+#### 第一次尝试
+
+`echo` 要做的事看起来很简单——调 `printk(arg)`，再输出一个换行——
+新建 `lib/shell_cmds.S`，可能很自然会写成这样：
+
+```asm
+    .globl cmd_echo
+cmd_echo:
+    bl          printk              /* printk(arg)，arg 已经在 $a0 里 */
+
+    addi.d      $a0, $zero, 0x0d    /* '\r' */
+    bl          uart_putc
+    addi.d      $a0, $zero, 0x0a    /* '\n' */
+    bl          uart_putc
+
+    jr          $ra
+```
+
+`Makefile` 的 `SRCS_S` 列表里加一行 `lib/shell_cmds.S`，编译、`make run`，
+敲 `echo hello`：
+
+```text
+> echo hello
+hello
+>
+```
+
+**看起来完全正确**——`hello` 换行也对，但敲下一条命令（比如 `meminfo`）
+会发现：**shell 再也没反应了，连 `> ` 提示符都不会再出现**，输入什么
+都没用，只能重启 QEMU。
+
+#### 定位
+
+输出本身是对的，问题出在"打印完之后"——这提示问题不在打印逻辑，而在
+`cmd_echo` **怎么返回**。回想第 6 次课的规则：`bl` 指令把"调用者要我
+返回去的地址"存进 `$ra`；`cmd_echo` 内部又调用了 `printk`/`uart_putc`
+——每一次 `bl` 都会把 `$ra` 覆盖成"这次调用要返回去的地址"。`cmd_echo`
+自己也调用了别的函数（是"非叶子函数"），如果不在一开始就把 `$ra` 先
+存到栈上、等所有内部调用都做完了再取回来，那么执行到最后一个
+`bl uart_putc` 时，`$ra` 已经被改成"`uart_putc` 要返回到 `cmd_echo`
+里 `jr $ra` 这一行"——而不是"`cmd_echo` 的调用者要我返回去的地址"。
+于是 `jr $ra` 跳回的其实是**它自己所在的这一行**，变成了一个每次都
+跳回自己的死循环，永远也回不到 `shell_dispatch`，shell 自然也就再也
+读不到下一行输入。
+
+这跟第 6 次课 `sa_add3`、第 7 次课 `zero_and_copy` 的规则是同一条：
+**函数体内只要有 `bl`（非叶子函数），就必须在开头保存 `$ra`、结尾恢复
+`$ra`**，这次是自己第一次亲手踩到不遵守这条规则的后果。
+
+#### 修正
+
+```asm
+    .globl cmd_echo
+cmd_echo:
+    addi.d      $sp, $sp, -16
+    st.d        $ra, $sp, 8
+
+    bl          printk              /* printk(arg)，arg 已经在 $a0 里 */
+
+    addi.d      $a0, $zero, 0x0d    /* '\r' */
+    bl          uart_putc
+    addi.d      $a0, $zero, 0x0a    /* '\n' */
+    bl          uart_putc
+
+    ld.d        $ra, $sp, 8
+    addi.d      $sp, $sp, 16
+    jr          $ra
+```
+
+重新编译、`make run`，再敲 `echo hello` 然后接一条 `meminfo`：
+
+```text
+> echo hello
+hello
+> meminfo
+used=0 capacity=16384 free_blocks=0
+>
+```
+
+这次 `meminfo` 的提示符和结果都正常出现，说明 `cmd_echo` 真的回到了
+`shell_dispatch`，而不是卡在自己里面。
+
+**这条经验可以直接套用到你以后想自己再多写几个命令的动作函数上**：
+只要函数体内出现了 `bl`（哪怕只调了一次别的函数），开头保存 `$ra`、
+结尾恢复 `$ra` 就不能省——省了不一定马上报错或输出乱码，很可能是像
+这次一样，表面上输出完全正确，只在"该返回的时候"悄悄卡死，从现象上
+很难第一时间联想到是 `$ra` 的问题。
+
 ## 9. 把 shell 挪到真机安全触发位置
 
 这一步不是新写算法，是调整**已有代码摆放的位置** + 补一个小命令，
