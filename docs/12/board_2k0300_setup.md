@@ -229,7 +229,7 @@ SECTIONS
 }
 ```
 
-`.got` 这段是必需的，不是可选优化——如果不显式给它分配位置，链接器会把它当"孤儿段"塞在 `__bss_start = .;` 这行赋值生效的地方，`clear_bss` 每次开机都会把它连带清零，之后任何用 `la.global` 取地址、还要在函数调用之后继续用这个地址的代码（比如 §8.4 会写到的、给一条命令加一个固定字符串）都会悄悄拿到全 0，表现成"打印不出来但也不报错"，很难查——`kernel/linker.ld`（QEMU 版本的原型）也一并修了这个问题。
+`.got` 这段是必需的，不是可选优化——如果不显式给它分配位置，链接器会把它当"孤儿段"塞在 `__bss_start = .;` 这行赋值生效的地方，`clear_bss` 每次开机都会把它连带清零，之后任何用 `la.global` 取地址、还要在函数调用之后继续用这个地址的代码（比如 §8.5 给 `help` 命令加一个固定字符串）都会悄悄拿到全 0，表现成"打印不出来但也不报错"，很难查——`kernel/linker.ld`（QEMU 版本的原型）也一并修了这个问题。
 
 ### 4.2 拆分 UART 平台头文件
 
@@ -1059,6 +1059,71 @@ used=0 capacity=16384 free_blocks=0
 结尾恢复 `$ra` 就不能省——省了不一定马上报错或输出乱码，很可能是像
 这次一样，表面上输出完全正确，只在"该返回的时候"悄悄卡死，从现象上
 很难第一时间联想到是 `$ra` 的问题。
+
+### 8.5 把 `help` 也改成汇编（第二个例子：尾调用）
+
+`echo` 是"非叶子函数要老老实实搭栈帧"的例子；`help` 正好是反例——它
+只做一件事：打印一句固定文字，然后返回，可以用一个更省事的写法。
+
+C 版本（`shell_dispatch` 里内联的写法）：
+
+```c
+if (strcmp(cmd, "help") == 0) {
+    printk("commands: help, echo <text>, meminfo, crash <ade|ale|sys|brk|ine>, timer\n");
+}
+```
+
+汇编版本，加进 `lib/shell_cmds.S`：
+
+```asm
+    .section .rodata
+help_str:
+    .string "commands: help, echo <text>, meminfo, crash <ade|ale|sys|brk|ine>, timer\n"
+
+    .section .text
+    .globl cmd_help
+cmd_help:
+    la.global   $a0, help_str
+    b           printk
+```
+
+`kernel/main.c` 对应改成：
+
+```c
+extern void cmd_help(void);
+...
+if (strcmp(cmd, "help") == 0) {
+    cmd_help();
+}
+```
+
+注意这里最后一条是 `b printk`（无条件跳转），不是 `bl` + `jr $ra`——
+**尾调用**：`cmd_help` 自己从头到尾没碰过 `$ra`，`printk` 执行完
+`jr $ra` 会直接用 `cmd_help` 的调用者（`shell_dispatch`）交代的那个
+返回地址，完全不需要栈帧，也不需要保存/恢复 `$ra`。能这样写的前提是
+"函数体内最后一件事、也是唯一一次调用，调用结果就是这个函数的全部
+行为"——`echo` 后面还要接两次 `uart_putc`，不满足这个条件，所以老实
+按 §8.4 那套栈帧写法来。
+
+这里第一次用到 `la.global` 取一个真正的 `.rodata` 字符串常量的地址——
+之所以此前 `echo` 的 `\r\n` 宁可拆成两次 `uart_putc` 传立即数、也没走
+这条路，是因为 §4.1 提到的 `.got` 链接脚本坑当时还没修：`.got` 没有
+被显式分配位置，会被 `clear_bss` 连带清零，`la.global` 取到的地址会
+变成 0，表现成"打印不出来但不报错"。§4.1 给的链接脚本已经修好这个问题
+（`.data` 之后、`__bss_start` 之前显式放了 `.got` 段），所以这里能正常
+用 `la.global`——如果你的 `linker_2k0300.ld` 是很早之前抄的、还没有
+那段 `.got`，先回去照 §4.1 补上，不然这里会复现同样"打印不出来"的
+现象。
+
+重新编译、`make run`，敲两次 `help` 确认能重复调用：
+
+```text
+> help
+commands: help, echo <text>, meminfo, crash <ade|ale|sys|brk|ine>, timer
+> help
+commands: help, echo <text>, meminfo, crash <ade|ale|sys|brk|ine>, timer
+>
+```
 
 ## 9. 把 shell 挪到真机安全触发位置
 
