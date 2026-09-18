@@ -690,6 +690,51 @@ char uart_getc(void)
 再从数据寄存器（跟 `uart_putc` 写的是同一个偏移，16550 里发送/接收共用
 一个地址，读为 RBR、写为 THR）读一个字节返回。
 
+命令按空格切成"命令名"+"参数"两段这件事，本身就是一个逐字节扫描的活，
+跟第 5/7 次课的 `strlen`/`strcmp` 是同一类，这里也写成汇编，接回这门课
+的主线，而不是全用 C 堆起来。`include/string.h` 加一行声明：
+
+```c
+char *split_command(char *line);
+```
+
+`lib/string.S` 补实现（照 `strlen`/`strcmp` 的风格写，找的目标字符从
+`'\0'` 换成空格）：
+
+```asm
+/*
+ * char *split_command(char *line)
+ * 原地把第一个空格改写成 '\0'（line 从此变成命令名这一段，调用者手上
+ * 已经有这个指针，不用另外返回），返回值是参数段的起始地址——跳过
+ * 空格后面可能连续的空格，停在第一个非空格字符（或者字符串末尾的
+ * '\0'，代表没有参数）。叶子函数：函数体内没有 bl。
+ */
+    .globl split_command
+split_command:
+1:                              /* 找第一个空格或 '\0' */
+    ld.bu       $t0, $a0, 0
+    beqz        $t0, 4f         /* 到字符串结尾都没找到空格：没有参数 */
+    addi.d      $t1, $zero, 0x20  /* 0x20 = ' ' */
+    beq         $t0, $t1, 2f
+    addi.d      $a0, $a0, 1
+    b           1b
+
+2:                              /* a0 指向命令名后的第一个空格：切断它 */
+    st.b        $zero, $a0, 0
+    addi.d      $a0, $a0, 1
+
+3:                              /* 跳过空格后面可能还有的连续空格 */
+    ld.bu       $t0, $a0, 0
+    beqz        $t0, 4f
+    addi.d      $t1, $zero, 0x20
+    bne         $t0, $t1, 4f
+    addi.d      $a0, $a0, 1
+    b           3b
+
+4:
+    jr          $ra
+```
+
 命令行循环、内置命令处理函数，`kernel/main.c` 里 `kernel_main` 前面加：
 
 ```c
@@ -776,19 +821,8 @@ static int shell_read_line(char *buf, int maxlen)
 static void shell_dispatch(char *line)
 {
     char *cmd = line;
-    char *arg;
-
-    arg = line;
-    while (*arg && *arg != ' ') {
-        arg++;
-    }
-    if (*arg == ' ') {
-        *arg = '\0';
-        arg++;
-        while (*arg == ' ') {
-            arg++;
-        }
-    }
+    /* 按空格切成"命令名"+"参数"两段，实现见 lib/string.S split_command */
+    char *arg = split_command(line);
 
     if (cmd[0] == '\0') {
         return;
