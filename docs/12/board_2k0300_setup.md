@@ -924,23 +924,96 @@ hello
 会发现：**shell 再也没反应了，连 `> ` 提示符都不会再出现**，输入什么
 都没用，只能重启 QEMU。
 
+#### 动手调试：用 GDB 亲手看到问题出在哪
+
+别急着回去翻第 6 次课的笔记，先用第 10 次课学过的 GDB 亲手看一遍——
+这次多一个命令：`ni`（nexti，跟 `si` 一样按指令步进，但碰到 `bl` 会把
+被调用的整个函数当一步跳过去，不会跟进 `printk`/`uart_putc` 内部）。
+
+开两个 WSL 终端，都 `cd` 到仓库目录：
+
+**终端 A**（保持这个进程占着，之后要在这里敲 `echo hello`）：
+
+```bash
+make PLATFORM=qemu_virt debug
+```
+
+**终端 B**：
+
+```bash
+gdb-multiarch build/minios.elf
+```
+
+```text
+target remote :1234
+b cmd_echo
+c
+```
+
+`c` 敲下去之后终端 B 会卡住（等断点命中），切到**终端 A**，等它把
+week01-11 的验收输出滚完、出现 `> ` 提示符后，敲：
+
+```text
+echo hello
+```
+
+回车。这时候终端 B 应该会打印 `Breakpoint 1, cmd_echo ()...`——命中了。
+回到终端 B，依次敲：
+
+```text
+x/6i $pc
+info registers ra pc
+```
+
+`x/6i $pc` 能看到 `cmd_echo` 的全部 6 条指令（3 个 `bl`，夹在中间的两条
+`li.d`，最后一条 `jr $ra`）；`info registers ra pc` 记一下**当前**的
+`$ra`——这是 `shell_dispatch` 调用 `cmd_echo` 时交代的"你做完了要回到
+这里"，先记住这个值，后面要用它对比。
+
+然后用 `ni` 一步一步"跳过"（不进去）每个 `bl`，每步完看一眼寄存器：
+
+```text
+ni
+info registers ra pc
+ni
+info registers ra pc
+ni
+info registers ra pc
+```
+
+前两次 `ni`（跳过 `bl printk`、跳过第一个 `bl uart_putc`）之后，
+`$ra` 每次都会变成"`cmd_echo` 内部下一条指令的地址"——这本身没问题，
+是每次 `bl` 都会做的事。**关键看第三次**：跳过第二个 `bl uart_putc`
+之后，再看 `info registers ra pc`——**`$ra` 和 `$pc` 会是同一个地址**
+（`$pc` 正好停在 `cmd_echo` 最后那条 `jr $ra` 上）。这一步就是问题所在：
+`$ra` 现在指向的不是"回到 `shell_dispatch`"，而是**指向它自己脚下这条
+`jr` 指令**。再敲一次：
+
+```text
+si
+info registers ra pc
+```
+
+会看到 `$pc` 还是停在原地没挪动——`jr $ra` 把自己送回了自己，陷进了
+死循环，这就是终端 A 里 shell 卡死、`meminfo` 敲了也没反应的真正原因。
+调试完 `Ctrl+C` 结束 gdb，终端 A 那边的 QEMU 也重启一下（`Ctrl+a` 再
+`x`，或者直接关掉终端）。
+
 #### 定位
 
-输出本身是对的，问题出在"打印完之后"——这提示问题不在打印逻辑，而在
-`cmd_echo` **怎么返回**。回想第 6 次课的规则：`bl` 指令把"调用者要我
-返回去的地址"存进 `$ra`；`cmd_echo` 内部又调用了 `printk`/`uart_putc`
-——每一次 `bl` 都会把 `$ra` 覆盖成"这次调用要返回去的地址"。`cmd_echo`
-自己也调用了别的函数（是"非叶子函数"），如果不在一开始就把 `$ra` 先
-存到栈上、等所有内部调用都做完了再取回来，那么执行到最后一个
-`bl uart_putc` 时，`$ra` 已经被改成"`uart_putc` 要返回到 `cmd_echo`
-里 `jr $ra` 这一行"——而不是"`cmd_echo` 的调用者要我返回去的地址"。
-于是 `jr $ra` 跳回的其实是**它自己所在的这一行**，变成了一个每次都
-跳回自己的死循环，永远也回不到 `shell_dispatch`，shell 自然也就再也
-读不到下一行输入。
+对照上面亲手看到的现象，回想第 6 次课的规则就说得通了：`bl` 指令把
+"调用者要我返回去的地址"存进 `$ra`；`cmd_echo` 内部又调用了
+`printk`/`uart_putc`——每一次 `bl` 都会把 `$ra` 覆盖成"这次调用要返回
+去的地址"。`cmd_echo` 自己也调用了别的函数（是"非叶子函数"），如果
+不在一开始就把 `$ra` 先存到栈上、等所有内部调用都做完了再取回来，
+那么执行到最后一个 `bl uart_putc` 时，`$ra` 就会被改成"`uart_putc`
+要返回到 `cmd_echo` 里 `jr $ra` 这一行"——而不是"`cmd_echo` 的调用者
+要我返回去的地址"，正是刚才在 GDB 里亲眼看到的那个"`$ra` 等于 `$pc`"。
 
 这跟第 6 次课 `sa_add3`、第 7 次课 `zero_and_copy` 的规则是同一条：
 **函数体内只要有 `bl`（非叶子函数），就必须在开头保存 `$ra`、结尾恢复
-`$ra`**，这次是自己第一次亲手踩到不遵守这条规则的后果。
+`$ra`**——这次不只是读到规则，是自己用 GDB 亲手确认了不遵守这条规则
+会具体坏成什么样子。
 
 #### 修正
 
