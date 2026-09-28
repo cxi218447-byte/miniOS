@@ -35,9 +35,9 @@ sum3:
     jr      $ra
 
 caller_demo:
-    addi.d  $a0, $zero, 10
-    addi.d  $a1, $zero, 20
-    addi.d  $a2, $zero, 30
+    addi.d  $a0, $zero, 10     # a = 10
+    addi.d  $a1, $zero, 20     # b = 20
+    addi.d  $a2, $zero, 30     # c = 30
     bl      sum3
     # 执行到这一行时，$a0 = ?
 ```
@@ -60,10 +60,10 @@ calc:
     jr      $ra
 
 caller_task:
-    addi.d  $a0, $zero, 50
-    addi.d  $a1, $zero, 10
-    addi.d  $a2, $zero, 5
-    addi.d  $a3, $zero, 3
+    addi.d  $a0, $zero, 50     # a = 50
+    addi.d  $a1, $zero, 10     # b = 10
+    addi.d  $a2, $zero, 5      # c = 5
+    addi.d  $a3, $zero, 3      # d = 3
     bl      calc
     # 执行到这一行时，$a0 = ?
 ```

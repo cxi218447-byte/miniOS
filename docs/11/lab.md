@@ -1,4 +1,4 @@
-# 第 11 次课实验指导书：中断/定时器实验 + miniOS 内核服务整理
+# 第 11 次课实验指导书：库函数独立实现 + 中断/定时器实验 + miniOS 内核服务整理
 
 > 技术编号：`11`　|　建议检查点：`11-irq-kernel-recap`　|　4 学时连排（纯实验课）  
 > 称"第 11 次课"，不称"第 11 周"。配合讲义：`docs/11/lecture_notes.md`。  
@@ -40,14 +40,14 @@ git fetch --tags
 
 ## 1. 实验目标
 
-本实验配合 4 学时（每学时 45 分钟）教学，分成两个前后衔接的单元。完成后应能：
+本实验配合 4 学时（每学时 45 分钟）教学，分成三个前后衔接的单元。完成后应能：
 
-1. 说清定时器三个 CSR（`TCFG`/`TVAL`/`TICLR`）与两层使能（`ECFG`/`CRMD.IE`）的分工。
-2. 跑通一个真实的周期性定时器中断 demo，并能调参观察 tick 节奏变化。
-3. 解释异常与中断为何共享同一个 `EENTRY` 入口，以及中断入口为何要保存更多寄存器。
-4. **亲手写代码**验证定时器周期重装（读 TVAL）、实现三档变速 tick、实现 `timer_pause()`/`timer_resume()`，而不只是观察别人写好的代码。
-5. 画出 miniOS 当前的内核服务地图，说清模块边界。
-6. **亲手写一个 `kernel_integration_demo()`**，把启动、库函数、系统调用（含防御性测试）、异常、中断（含暂停/恢复）这条服务链真正串联跑通一遍，体会"操作系统 = 服务集成 + 事件驱动模拟"。
+1. 独立实现一个新的库函数（`strncmp`），不看提示把寄存器/访存/循环/调用约定组合起来。
+2. 说清定时器三个 CSR（`TCFG`/`TVAL`/`TICLR`）与两层使能（`ECFG`/`CRMD.IE`）的分工。
+3. 跑通一个真实的周期性定时器中断 demo，并能调参观察 tick 节奏变化。
+4. 解释异常与中断为何共享同一个 `EENTRY` 入口，以及中断入口为何要保存更多寄存器。
+5. **亲手写代码**验证定时器周期重装（读 TVAL）、实现三档变速 tick、实现 `timer_pause()`/`timer_resume()`。
+6. 跟着指引把 `kernel_integration_demo()` 抄进 `kernel/main.c` 并跑通，把启动、库函数、系统调用（含防御性测试）、异常、中断（含暂停/恢复）这条服务链真正串联起来一遍。
 
 ## 2. 实验环境与准备（必须先做对）
 
@@ -86,28 +86,81 @@ git switch -c my-11-lab 11-irq-kernel-recap
 ### 2.3 重点文件
 
 ```text
+include/string.h       （单元一：strncmp 声明加在这里）
+lib/string.S            （单元一：memset/memcpy/strlen/memmove/strcmp/zero_and_copy 已有，strncmp 待你实现）
 boot/start.S          （exception_entry，第9次课已有，本课升级为144字节栈帧）
 kernel/exception.c    （exception_handler，本课新增 Ecode==0 分支）
 kernel/irq.c          （本课可运行 demo：timer_init/irq_dispatch/timer_stop；Task3.5/3.7 在此新增 timer_read_remaining/timer_pause/timer_resume）
 include/irq.h         （Task3.7 在此补充 timer_pause/timer_resume 声明）
-kernel/main.c         （定时器中断验收段；Task3.6/Task6 在此新增代码）
-kernel/syscall.c      （第8次课已有，Task6 会调用 syscall_dispatch/SYS_WRITE）
+kernel/main.c         （单元一验收、单元二定时器验收段、单元三 kernel_integration_demo 都写在这里）
+kernel/syscall.c      （第8次课已有，单元三会调用 syscall_dispatch/SYS_WRITE）
 include/syscall.h
-lib/string.S          （第2/7次课已有，Task6 会调用 memset/memcpy/strlen，见 include/string.h）
 ```
 
 ## 3. 实验安排
 
 | 教学单元 | 对应学时 | 实验内容 | 建议完成点 |
 |---|---|---|---|
-| 单元一：定时器中断上机 | 第 1–2 学时 | Task 1–3.7 | 第 2 学时结束 |
-| 单元二：内核服务整理 | 第 3–4 学时 | Task 4–8 | 第 4 学时结束 |
+| 单元一：库函数独立实现 | 第 1 学时 | §4 独立实现 `strncmp` | 第 1 学时结束 |
+| 单元二：定时器中断上机 | 第 2–3 学时 | §5 Task 1–3.7 | 第 3 学时结束 |
+| 单元三：内核服务整理 + 集成demo（跟做） | 第 4 学时 | §6 跟做 `kernel_integration_demo()` | 第 4 学时结束 |
 
-## 4. 单元一：定时器中断上机（第 1–2 学时）
+## 4. 单元一：库函数独立实现（第 1 学时）
+
+第 6/7 次课学过 `memset`/`memcpy`/`strlen`/`memmove`/`strcmp`/`zero_and_copy` 六个函数，
+代码已经在仓库的 `lib/string.S` 里（本次 checkpoint 起点就带着，不用重写）。本单元
+**只有一个编程任务**：独立实现第七个——`strncmp`，`strcmp` 的"最多比较 n 个字符"
+版本。不给任何汇编代码，自己写。
+
+**提交要求只有一个：** 跑通后截图，上传截图即可，不用交报告（对应第 11 节提交清单）。
+
+### 4.1 任务：实现 `strncmp`
+
+**函数原型**：`int strncmp(const char *a, const char *b, size_t n)`
+
+| 寄存器 | 含义 |
+|---|---|
+| `$a0` | 字符串 `a` 的地址 |
+| `$a1` | 字符串 `b` 的地址 |
+| `$a2` | `n`：最多比较的字节数 |
+| 返回（`$a0`） | 0：前 n 个字节相等（或双方在 n 个字节内已同时遇到 `'\0'`）；非 0：第一个不同字节的差值 |
+
+**行为约定**（对照 `strcmp`，只是多了一个"最多比几个"的限制）：
+
+- `n == 0`：不读取 `a`/`b` 的任何字节，直接返回 0。
+- 比较到第 n 个字节为止：如果前 n 个字节全部相同，即使后面还有不同字符，也
+  返回 0（不能比过 n）。
+- 如果在第 n 个字节以内遇到不同字节，返回那一对字节的差值（同 `strcmp`：
+  无符号加载后相减，教学简化，不做饱和处理）。
+- 如果在第 n 个字节以内两边同时读到 `'\0'`，直接判定相等，返回 0（不需要凑满 n 次）。
+
+**要求**：
+
+1. 在 `include/string.h` 里加一行声明。
+2. 在 `lib/string.S` 里独立实现——自己写循环处理 `n`，不允许直接调用现成的
+   `strcmp` 再敷衍了事（那样处理不了 `n` 的截断）。
+3. 在 `kernel/main.c` 里用 `printk` 验证，至少覆盖以下三种情况：
+   - 前 n 个字节相同、n 之外不同 → 应判定相等
+   - 在 n 个字节以内出现不同字节 → 应判定不等
+   - `n == 0` → 应判定相等
+
+### 4.2 验收与提交
+
+```bash
+make clean
+make
+make run
+```
+
+串口里能看到你自己写的三行验证输出（内容和上面三种情况对应，格式自定）。
+
+**截图这部分串口输出，上传截图。就这一步，不用交代码、不用写报告。**
+
+## 5. 单元二：定时器中断上机（第 2–3 学时）
 
 ### Task1 精读代码
 
-- 对照讲义 §4.1–§4.3，在 `kernel/irq.c` 逐行标注：哪几行是"配置"，哪几行是"使能"，哪一行是"清源"。
+- 对照讲义 §5.1–§5.3，在 `kernel/irq.c` 逐行标注：哪几行是"配置"，哪几行是"使能"，哪一行是"清源"。
 - 在 `kernel/exception.c` 找到 `ecode == 0` 分支，说明它为什么不用 `era + 4`。
 
 ### Task2 运行验收
@@ -213,43 +266,34 @@ void timer_resume(void)
 在 `include/irq.h` 里加上这两个函数的声明（参照 `timer_stop`/`timer_init` 已有的写法）。
 
 - 书面回答：`timer_pause()`/`timer_stop()` 两个函数的**函数体**几乎一样，为什么还要分开定义两个名字？（提示：接口语义比实现更重要——调用者看函数名就该知道"这个中断以后还会不会回来"）
-- 这两个函数会在 Task6 的 `kernel_integration_demo()` 里实际用到，先写好待用。
+- 这两个函数会在单元三的 `kernel_integration_demo()` 里实际用到，先写好待用。
 
-### 单元一阶段验收
+### 单元二阶段验收
 
 - `make run` 输出与 Task2 摘录一致，且能看到 Task3.5 新增的 TVAL 打印行、Task3.6 三档变速的节奏变化。
 - 有至少两组 `TIMER_COUNT` 取值的调参记录（Task3）。
-- 能解释中断入口为什么要保存比第 9 次课更多的寄存器（讲义 §4.4）。
+- 能解释中断入口为什么要保存比第 9 次课更多的寄存器（讲义 §5.4）。
 - 能解释为什么 Task3.6 必须重新调用 `timer_init()` 才能生效，而不是改个局部变量就够了。
 - `timer_pause()`/`timer_resume()` 编译通过（Task3.7），能说清它们和 `timer_stop()`/`timer_init()` 的语义差异。
 
-## 5. 单元二：miniOS 内核服务整理（第 3–4 学时）
+## 6. 单元三：miniOS 内核服务整理 + 集成demo（第 4 学时，跟做即可）
 
-### Task4 画服务地图
+本单元**不要求独立画图、不要求独立设计代码**——讲义直接给出服务地图和完整
+代码，你只需要读懂、照抄进 `kernel/main.c`、跑通、截图。
 
-- 按讲义 §5.1 的树状结构，自己重新画一遍（可以用画图工具或手绘拍照），标出每个模块对应的课次。
+### 6.1 服务地图（阅读理解，讲义 §6.1 已给出）
 
-### Task5 边界问答
+对照 `docs/11/lecture_notes.md` §6.1 的服务地图，在代码里找到对应的每一行调用，
+确认自己能看懂"谁调用谁"。不需要自己重新画一遍。
 
-回答讲义 §5.2 的四个问题：
+### 6.2 边界问答（阅读理解，讲义 §6.2 已给出答案）
 
-1. 谁能直接碰硬件（MMIO/CSR）？
-2. 哪个模块被依赖最多？
-3. 哪两个模块表面不同、底层同构？
-4. 哪个入口不是被 C 代码"调用"，而是硬件跳转？
+读一遍讲义 §6.2 的四个问答，对照代码确认理解，不需要书面重新作答。
 
-### Task6 实现 kernel_integration_demo()：一次操作系统全服务模拟（必做，写代码）
+### 6.3 跟做 kernel_integration_demo()（必做，照抄代码）
 
-在 `kernel/main.c` 里新增一个函数 `kernel_integration_demo(void)`，紧跟在服务地图讨论（Task4/Task5）之后、`week11-irq-kernel-recap check done` 之前调用它，依次**真正串联**本课程目前学过的全部内核服务（不是画图，是让它们在同一次运行里真实跑一遍）。这个任务依赖 Task3.7 已经写好的 `timer_pause`/`timer_resume`，建议先完成 Task3.7 再做本任务：
-
-1. **库函数（第2/7次课）**：用 `memset` 清零一段小缓冲区，`memcpy` 拷贝一段文本进去，`strlen` 算出长度，`printk` 打印结果——模拟"内存管理雏形"。
-2. **系统调用正常路径（第8次课）**：调用 `syscall_dispatch(SYS_WRITE, 1, (long)msg, len)`（而不是直接调 `printk`/`uart_putc`），走一遍"用户态请求内核服务"的路径。
-3. **系统调用防御性测试**：再调用一次 `syscall_dispatch(SYS_WRITE, 99, ...)`（`fd=99` 是非法值），检查返回值是不是 `-1`，打印一行"非法 fd 被正确拒绝"或"BUG"——验证 `sys_write` 的参数校验真的生效，而不是只是看了一眼代码。
-4. **同步异常（第9次课）**：执行一次 `__asm__ volatile("break 0")`，观察 `exception_handler` 打印 ESTAT/ERA 并安全恢复。
-5. **异步中断 + 暂停/恢复（本课单元一 Task3.7）**：启动定时器，先等 2 次 tick，调用 `timer_pause()` 并打印"已暂停，tick 数=N"，确认停住不再增加，再调用 `timer_resume()` 继续等到共 5 次 tick，最后 `timer_stop()`——不但走一遍中断，还验证了 Task3.7 写的暂停/恢复接口真的有效。
-6. 全部完成后打印一行 `kernel_integration_demo: OS lifecycle simulated` 作为集成验收串。
-
-**提示（容易踩的坑）**：`irq_ticks()` 是**全程累计**的全局计数，单元一已经把它跑到了 5，`timer_stop()`/`timer_pause()` 都不会把它清零。所以判断"这次又等了几个 tick"不能直接写 `while (irq_ticks() < 3)`（条件一开始就已经不成立，循环一次都不会进），要记录"本次开始时的 tick 数"再加 N：
+在 `kernel/main.c` 里新增一个函数 `kernel_integration_demo(void)`，紧跟在
+`week11-irq-kernel-recap check done` 之前调用它。下面是**完整代码，直接照抄**：
 
 ```c
 #include "syscall.h"
@@ -262,7 +306,7 @@ static void kernel_integration_demo(void)
     unsigned long start_ticks;
     long bad_ret;
 
-    /* 1. 库函数 */
+    /* 1. 库函数（单元一刚复习过的 memset/memcpy/strlen） */
     memset(buf, 0, sizeof(buf));
     memcpy(buf, msg, strlen(msg));
     printk("integration: buf=");
@@ -302,31 +346,46 @@ static void kernel_integration_demo(void)
 }
 ```
 
-（上面是骨架提示，不要整段照抄，自己理解每一步在调用哪个模块、对应哪次课。）函数直接写在 `kernel/main.c` 里即可，不需要新建源文件（避免改动 `Makefile`）。
+**提示（容易踩的坑）**：`irq_ticks()` 是**全程累计**的全局计数，单元二已经把它跑到了 5，
+`timer_stop()`/`timer_pause()` 都不会把它清零，所以上面代码用"启动时的基准值 `start_ticks` + N"
+而不是直接 `< N`——这一点代码里已经处理好了，照抄即可，理解一下为什么这么写。
 
-验收：`make run` 能看到上述 6 步的真实输出，顺序正确，不卡死、不复位，能看到"暂停后 tick 数不再变化、恢复后继续变化"，最后能看到集成验收串。
+这段代码依赖单元二 Task3.7 写好的 `timer_pause`/`timer_resume`，请确认 Task3.7 已完成再做本单元。
 
-### Task7 为第 12 次课准备
+### 6.4 验收与提交
 
-- 从选题 A（启动与服务）/ B（板级迁移）/ C（Agent Runtime 雏形）中预选一个方向（第 12 次课会用到）。第 12 次课选题 A 可以直接复用 Task6 写好的 `kernel_integration_demo()` 作为展示起点。
-- 若倾向选题 B：在服务地图上标出"平台相关"与"平台无关"的模块。
+```bash
+make clean
+make
+make run
+```
+
+核对能看到：库函数结果、系统调用正常路径、非法 fd 被拒绝、`break 0` 触发异常并安全恢复、
+"暂停后 tick 数不再变化、恢复后继续变化"、最后的 `kernel_integration_demo: OS lifecycle simulated`。
+
+**截图这部分完整输出，上传截图。这一步不用交代码、不用写报告。**
+
+### Task7 为第 12 次课准备（选做）
+
+- 从选题 A（启动与服务）/ B（板级迁移）/ C（Agent Runtime 雏形）中预选一个方向（第 12 次课会用到）。第 12 次课选题 A 可以直接复用本单元跑好的 `kernel_integration_demo()` 作为展示起点。
 
 ### Task8（选做）故障复现
 
 - 临时注释掉 `kernel/irq.c` 中 `irq_dispatch` 里的 `timer_irq_clear()` 调用，重新编译运行，记录现象（提示：会不会卡住/刷屏），解释原因，然后改回来确认恢复正常。
 
-## 6. 验收标准
+## 7. 验收标准
 
-- 定时器中断真实跑通，输出与 Task2 摘录一致
-- 能解释 `ESTAT.Ecode` 如何区分异常与中断
-- `timer_read_remaining()` 打印的 TVAL 能体现周期模式自动重装（Task3.5）
-- 三档变速 tick 效果真实可见，能说明为什么必须重新调用 `timer_init()`（Task3.6）
-- `timer_pause()`/`timer_resume()` 编译通过，能说清与 `timer_stop()`/`timer_init()` 的语义差异（Task3.7）
-- 服务地图完整，边界问答有理有据（Task4–5）
-- `kernel_integration_demo()` 真实跑通，6 个环节顺序正确、不卡死，含非法 fd 防御性测试与暂停/恢复效果（Task6）
-- 能说明：`make` 须在 WSL/Linux 执行，不能在 Windows PowerShell 直接执行
+- 单元一：`strncmp` 独立实现、`make run` 输出你自己写的三行验证，截图。
+- 单元二：定时器中断真实跑通，输出与 Task2 摘录一致；能解释 `ESTAT.Ecode` 如何区分异常与中断；`timer_read_remaining()` 打印的 TVAL 能体现周期模式自动重装（Task3.5）；三档变速 tick 效果真实可见（Task3.6）；`timer_pause()`/`timer_resume()` 编译通过（Task3.7）。
+- 单元三：`kernel_integration_demo()` 照抄跑通，6 个环节顺序正确、不卡死，截图。
 
-## 7. 实验报告要求
+## 8. 提交清单
+
+- [ ] 单元一：`strncmp` 验证截图（串口三行输出）
+- [ ] 单元二：实验报告（见第 9 节要求）
+- [ ] 单元三：`kernel_integration_demo()` 完整输出截图
+
+## 9. 单元二实验报告要求（只有单元二需要报告，单元一/三截图即可）
 
 报告至少包含：
 
@@ -334,38 +393,30 @@ static void kernel_integration_demo(void)
 2. 关键命令与**真实输出**（可截断，但不可编造）
 3. 调参记录（Task3）、三档变速 tick 记录（Task3.6）与故障复现记录（Task8，若完成）
 4. `timer_read_remaining()` 的 TVAL 输出摘录（Task3.5）与 `timer_pause`/`timer_resume` 说明（Task3.7）
-5. 服务地图与边界问答（Task4–5）
-6. `kernel_integration_demo()` 的完整输出摘录，含防御性测试与暂停/恢复片段（Task6）
-7. 问题与解决过程（若有）
-8. 思考题作答
+5. 问题与解决过程（若有）
+6. 思考题作答（见讲义 §10）
 
-## 8. AI 共学边界
+## 10. AI 共学边界
 
-允许协助核对 CSR 位定义、整理服务地图排版、排查 `kernel_integration_demo()` 的编译报错；调参、TVAL 读数、变速 tick、集成 demo 与故障复现的真实输出必须来自本机 `make run`，不得编造。
+- 单元一（`strncmp`）：允许对照 ABI 检查；**禁止只交无注释的长代码，禁止直接向 AI 索要完整实现**——这是本单元唯一的编程任务，独立完成才有意义。
+- 单元二/三：允许协助核对 CSR 位定义、排查 `kernel_integration_demo()`/`timer_pause`/`timer_resume` 的编译报错；调参、TVAL 读数、变速 tick、集成 demo 与故障复现的真实输出必须来自本机 `make run`，不得编造。
 
-## 9. 思考题
+## 11. 思考题
 
-1. 若一个中断处理函数执行时间过长，会挡住其他更紧急的中断，如何权衡？
-2. `irq_dispatch` 目前只认识定时器，如果要接入 UART 接收中断，接口应该怎么扩展？
-3. 服务地图里，哪个模块最适合作为板级迁移时"只改这一层"的边界？
+见讲义 `lecture_notes.md` §10。
 
-## 10. 提交清单
-
-- [ ] 实验报告（PDF/Markdown）
-- [ ] 关键输出摘录（含调参对比、三档变速 tick 记录、TVAL 读数、暂停/恢复片段）
-- [ ] 服务地图（图片或手绘照片）
-- [ ] `kernel_integration_demo()` 的完整输出摘录
-- [ ] 需要提交的代码补丁或笔记（按教师要求，含 Task3.5/3.6/3.7/6 新增代码）
-
-## 11. 常见故障速查
+## 12. 常见故障速查
 
 | 现象 | 处理 |
 |---|---|
 | PowerShell 报 `ObjectNotFound: make` | 先 `wsl -d Ubuntu` 进入 Ubuntu，再 `cd` 仓库后 `make` |
 | `wsl -d Ubuntu` 失败 | `wsl -l -v` 核对发行版名称 |
 | Ubuntu 中找不到工具 | 按 `docs/student_env_runbook.md` 安装课程工具链 |
+| `undefined reference to 'strncmp'` | 只在 `.h` 声明、没在 `lib/string.S` 实现，或忘了 `.globl strncmp` |
+| `strncmp` 在 `n=0` 时崩溃/读到垃圾 | 循环入口要先判断 `$a2==0`，不能先读一个字节再判断 |
+| `strncmp` 前 n 相同也被判成不等 | 检查计数减到 0 时是否正确返回相等，而不是继续往后读 |
 | tick 一直不出现 | 检查 `ECFG`/`CRMD.IE` 两层开关是否都打开 |
 | tick 刷屏停不下来 | 检查 `TICLR` 清源是否被误删（对照 Task8） |
-| Task6 里 `while (irq_ticks() < 3)` 循环一次都不进 | `irq_ticks()` 全程累计，单元一已经跑到 5；要用"启动时的基准值 + N"，见 Task6 提示 |
+| 单元三 `while (irq_ticks() < 3)` 循环一次都不进 | `irq_ticks()` 全程累计；要用"启动时的基准值 + N"，见 §6.3 提示 |
 | 编译报 `timer_pause`/`timer_resume` 隐式声明警告或链接错误 | Task3.7 里 `include/irq.h` 忘了加声明，或 `kernel/main.c` 忘了 `#include "irq.h"` |
 | 退不出 QEMU | `Ctrl+a`，再按 `x` |

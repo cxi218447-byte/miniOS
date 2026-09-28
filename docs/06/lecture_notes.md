@@ -212,25 +212,21 @@ sa_strlen_and_puts:
 1. 叶子 vs 非叶子：板书 `$ra` 时间线。  
 2. 让学生在 `memset` 上标注三个参数寄存器。  
 3. （可选）GDB 在 `bl` 前后打印 `$ra`。
-4. 可运行 demo：`lib/stack_abi.S`——`sa_add_one`（叶子）与 `sa_add3`（非叶子，内部两次 `bl sa_add`）。刻意演示：若 `sa_add3` 不在入口先保存自己的 `$ra`，第一次 `bl` 就会把它覆盖，第二次 `bl` 返回后 `jr $ra` 将跳到错误位置——这正是 Task C 的答案。
+4. 可运行 demo：`lib/stack_abi.S`——`sa_add_one`（叶子）与 `sa_add3`（非叶子，内部两次 `bl sa_add`）。刻意演示：若 `sa_add3` 不在入口先保存自己的 `$ra`，第一次 `bl` 就会把它覆盖，第二次 `bl` 返回后 `jr $ra` 将跳到错误位置——这正是 Task2 判断"是否需要保存 `$ra`"的道理。
 5. 可运行 demo：`sa_strlen_and_puts`——内部真调第 2 次课的 `strlen`、第 1 次课的 `uart_puts`，用 callee-saved 的 `$s0`/`$s1` 跨两次 `bl` 保存字符串指针与长度。板书对照：`$ra` 存/取是「回家的路」，`$s0`/`$s1` 存/取是「借来的椅子用完要放回原位」——纪律相同，对象不同（对应 Task3b）。
 6. `make run` 核对 `week06-stack-abi check done`，串口应能看到 `sa_strlen_and_puts` 打印出的字符串本身（来自内部的 `uart_puts` 调用）。
 
 ## 6. 实验实践
 
-**Task A**  
-实现 `int add3(int a, int b, int c)` 汇编版，C 中调用并 `printk` 结果（或返回后用已知方式观察）。
+**2026-09-22 更新：与 `docs/06/lab.md` 保持一致，实验改为纯读代码 + 填表，不再要求编程实现 `add3` 或手绘栈帧草图。**
 
-**Task B**  
-给 `foo→bar` 嵌套画栈帧草图。
+**Task1（寄存器与传参）**
+给一段"调用者传参 → `bl` 调用 → 被调用函数运算 → 返回"的代码（例子：`sum3(a,b,c)`；练习：`calc(a,b,c,d)`），逐个填出 `$a0`–`$a3`、`$ra` 在调用前/调用后分别存的是什么，并算出最终返回值。对应 `lib/stack_abi.S` 里 `sa_add3` 两次 `bl sa_add` 的传参方式，是同一件事的简化版。
 
-**Task C**  
-判断：下列函数是否必须保存 `$ra`？  
-- 只做 `addi` 后返回  
-- 内部 `bl printk`  
+**Task2（叶子 vs 非叶子）**
+给几个函数片段（例子：`funcA`/`funcB`；练习：`funcC`/`funcD`/`funcE`，其中 `funcE` 内部有两次 `bl`），判断内部是否调用了其他函数、是叶子还是非叶子、是否需要保存 `$ra`。`funcE`的意义在于说明：调用次数不影响判断，只要有 `bl` 就必须保存 `$ra`——对应上面 `sa_add3` 的 demo。
 
-**Task D**  
-若把 `sa_add3` 里 `st.d $a2, $sp, 16` 暂存 `c` 的写法，改成用 `$s0` 存 `c`（`move $s0, $a2` 代替入栈），还需要多做哪一步才合法？为什么——这一步体现的是 caller-saved 还是 callee-saved 规则？
+题目原文、示例代码与空白表格见 `docs/06/lab.md`。
 
 ## 7. AI 共学
 
