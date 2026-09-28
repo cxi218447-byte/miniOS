@@ -43,15 +43,16 @@ git fetch --tags
 
 完成本次课最小可验证闭环，主题：**UART 驱动、输出子系统与系统调用 sys_write**。
 
-本次实验共 **2 个任务**，每个任务分两步：
+本次实验共 **1 个任务**，分两步：
 
 1. **跑通**：给出一段完整的汇编代码，照着抄到新建的 `.S` 文件里，配上头文件声明、
    Makefile 登记、`main.c` 调用，跑起来看到预期输出。
 2. **进阶**：只给寄存器约定和要求，不给代码——自己写一段新的汇编逻辑，改掉现
    有代码里"不检查、直接来"的地方，当堂调试通过、截图。
 
-**提交只需两张截图**（Task1、Task2 进阶部分各一张串口输出截图），不用交报告、
-不留思考题、不用交代码补丁。
+**提交需要两样东西**：① Task1 进阶部分自己写的 `uart_putc_robust` 函数
+代码（贴纯文本即可）；② 验证成功后的串口输出截图。不用交完整代码补丁、
+不用交报告、不留思考题。
 
 ## 2. 实验环境与准备（必须先做对）
 
@@ -93,12 +94,9 @@ which make
 - 重点文件（已有）：
   - `kernel/printk.c`（第 1 次课已有的 UART 输出路径：`uart_putc`/`uart_puts`）
   - `include/uart.h`（`UART0_BASE`）
-  - `kernel/syscall.c`（本课已有 demo：`sys_write`/`syscall_dispatch`）
-  - `include/syscall.h`
-  - `Makefile`（`SRCS_S` 列表——本次课要往里加两个新文件）
+  - `Makefile`（`SRCS_S` 列表——本次课要往里加一个新文件）
 - 本次课要**新建**的文件（跑通步骤里创建）：
   - `lib/uart_asm.S`（Task1）
-  - `lib/syscall_asm.S`（Task2）
 
 ### 2.2 关于 `my-weekXX-lab` 分支（必读）
 
@@ -125,7 +123,7 @@ git switch -c my-08-lab <本次课tag>
 
 ## 3. 实验任务（默认均在已进入的 Ubuntu、仓库根目录）
 
-两个任务都要新建一个汇编文件，寄存器约定统一沿用之前几次课的调用约定
+本次任务要新建一个汇编文件，寄存器约定统一沿用之前几次课的调用约定
 （第 6 次课）：整数/指针参数从 `$a0` 开始依次排列，返回值放 `$a0`，`jr $ra`
 返回；本文件里的函数全部是叶子函数，不涉及 `bl`，不需要保存 `$ra`。
 
@@ -228,158 +226,47 @@ make clean && make && make run
 处写错（比如 bit 位判断反了、忘记清零跳转条件），要么整机卡死不动，要么输
 出乱码，当堂调，调通为止。
 
-**截图串口从 `Hello miniOS on LoongArch64` 到 `week11-irq-kernel-recap check
-done` 的完整输出**（证明换成轮询版本后行为不变），这是 Task1 要交的第 1 张图。
+调通之后，提交下面两样东西：
 
-### Task2：sys_write —— 从"照单全收"到"防御式校验"
+**代码：请提交你新写的 `uart_putc_robust` 函数代码**
 
-**背景**：现在的 `sys_write`（`kernel/syscall.c`）只检查了 `fd`（1/2 合法，
-其余 -1），对 `buf`/`len` 没有任何检查——`buf` 传 `NULL`、`len` 传一个离谱的
-大数，`sys_write` 都会照样往下执行。
+把 `lib/uart_asm.S` 里 `uart_putc_robust` 这一段原样贴在下面的文本框里（纯文本即可，不用上传图片）。
 
-#### Task2 步骤 1（跑通）：新建 `lib/syscall_asm.S`，实现 `sys_getlen`
+**截图：贴出串口从 `Hello miniOS on LoongArch64` 到 `week11-irq-kernel-recap check done` 的完整输出截图**
 
-把下面这段**完整代码**存成新文件 `lib/syscall_asm.S`：
+证明换成轮询版本后行为不变，这是本次要交的截图。
 
-```asm
-/*
- * 第 8 次课：syscall 相关的汇编实现。
- * sys_getlen(buf)：手动数字符串长度（遇到 '\0' 停止），不写任何数据，
- * 只读。a0 = buf 指针，返回 a0 = 长度（不含结尾 '\0'）。
- * 叶子函数，不碰 $ra。
- */
-    .section .text
+## 4. 验收标准
 
-    .globl sys_getlen
-sys_getlen:
-    move    $t0, $a0           /* t0 记住起始地址，用来最后算差值 */
-1:
-    ld.bu   $t1, $a0, 0
-    beqz    $t1, 2f            /* 读到 '\0'：结束计数 */
-    addi.d  $a0, $a0, 1
-    b       1b
-2:
-    sub.d   $a0, $a0, $t0      /* a0 = 当前地址 - 起始地址 = 长度 */
-    jr      $ra
-```
+- `uart_putc_robust` 必须先轮询 LSR（偏移 `+5`），等 bit5（`0x20`）为 1 之后
+  才把字符写进 THR（偏移 `+0`）；不允许跳过检查直接写 THR。
+- 代码里要有真正的轮询循环（`ld.bu` 读 LSR、`andi` 取出 bit5、根据结果条件
+  跳转），而不是恒真判断或死代码。
+- `uart_putc_robust` 是叶子函数：不使用、不保存 `$ra`；寄存器约定为
+  `$a0` = base，`$a1` = ch（低 8 位有效），无返回值。
+- 截图里的串口输出必须从 `Hello miniOS on LoongArch64` 完整打印到
+  `week11-irq-kernel-recap check done`，字符不丢、不乱码、程序不卡死。
 
-再做四处"文件代码添加"，让它跑起来：
+## 5. 报告要求
 
-1. **头文件声明**——在 `include/syscall.h` 里 `SYS_WRITE` 宏后面加一个新系统
-   调用号，`sys_write` 声明后面加函数声明：
+本次实验不要求提交单独的实验报告；学生提交的"报告正文"就是 Task1 里贴的
+`uart_putc_robust` 汇编代码文本本身。批改时对照上面的验收标准逐条核对这段
+代码和配套截图即可，不需要额外的文字说明。
 
-   ```c
-   #define SYS_GETLEN 2
-
-   long sys_getlen(const char *buf);
-   ```
-
-2. **Makefile 登记**——`Makefile` 的 `SRCS_S :=` 列表里再加一行：
-
-   ```makefile
-   	lib/syscall_asm.S \
-   ```
-
-3. **接入分发器**——在 `kernel/syscall.c` 的 `syscall_dispatch` 里，
-   `if (nr == SYS_WRITE) ...` 后面加一个分支：
-
-   ```c
-   if (nr == SYS_GETLEN)
-       return sys_getlen((const char *)a0);
-   ```
-
-4. **在 `kernel/main.c` 里调用一次**——紧跟 Task1 加的那段代码之后：
-
-   ```c
-   {
-       long len = syscall_dispatch(SYS_GETLEN, (long)"hello08", 0, 0);
-       printk("sys_getlen(\"hello08\") = ");
-       print_i64_dec(len);
-       printk("\n");
-   }
-   ```
-
-```bash
-make clean && make && make run
-```
-
-能在串口看到 `sys_getlen("hello08") = 7`，即为跑通。这一步不用截图。
-
-#### Task2 步骤 2（进阶，当堂调试 + 截图）：自己写 `check_write_args`
-
-**要求**：在 `lib/syscall_asm.S` 里**自己写**一个新函数（不给代码，只给约定）：
-
-```c
-long check_write_args(const char *buf, unsigned long len);
-```
-
-- `$a0` = buf，`$a1` = len，返回 `$a0`：**合法返回 0，非法返回 -1**。
-- 非法的两种情况（满足其一即非法）：
-  1. `buf` 为 `NULL`（即 `$a0 == 0`）；
-  2. `len` 超过 256（即 `$a1 > 256`）。
-- 提示：`beqz` 判断 `$a0` 是否为 0；比较 `$a1` 和立即数 256 可以用
-  `sltui $t0, $a1, 257`（`$a1 < 257` 即 `$a1 <= 256` 时 `$t0` 置 1），结合
-  `beqz $t0, ...` 判断"超过 256"这个分支。
-
-**接线**：修改 `kernel/syscall.c` 的 `sys_write`，在检查完 `fd` 之后、真正开
-始写之前，调用 `check_write_args(buf, len)`：非 0（即 -1）就直接 `return -1`，
-不执行任何 `uart_putc`。
-
-**验收**：在 `kernel/main.c` 里（紧跟 Task2 步骤 1 加的那段代码之后）构造
-三种调用，覆盖"正常 / buf 为 NULL / len 超限"：
-
-```c
-{
-    static const char ok_msg[] = "check_write_args ok case\n";
-    long r1, r2, r3;
-
-    /* 正常：应正常写出并返回真实长度 */
-    r1 = syscall_dispatch(SYS_WRITE, 1, (long)ok_msg, (long)(sizeof(ok_msg) - 1));
-    printk("sys_write normal      : return = ");
-    print_i64_dec(r1);
-    printk("\n");
-
-    /* buf 为 NULL：不应有任何字符被发送，应直接返回 -1 */
-    r2 = syscall_dispatch(SYS_WRITE, 1, 0, 5);
-    printk("sys_write buf=NULL    : return = ");
-    print_i64_dec(r2);
-    printk(" (应为 -1)\n");
-
-    /* len 超过 256：同样应直接返回 -1，不发送任何数据 */
-    r3 = syscall_dispatch(SYS_WRITE, 1, (long)ok_msg, 300);
-    printk("sys_write len=300     : return = ");
-    print_i64_dec(r3);
-    printk(" (应为 -1)\n");
-}
-```
-
-```bash
-make clean && make && make run
-```
-
-三行输出里，第一行应打印出真实写入长度，第二、三行都应是 `-1`——尤其注意
-第二行 `buf=NULL` 那一次调用**不能崩溃/卡死**（如果 `check_write_args` 没接
-好、`sys_write` 内部直接对 NULL 指针解引用去数长度或读字节，QEMU 里会触发
-地址访问异常导致整机行为异常，当堂调，调通为止）。
-
-**截图这三行输出**，这是 Task2 要交的第 2 张图。
-
-## 4. 验收与提交
+## 6. 验收与提交
 
 - Task1：串口从 `Hello miniOS...` 到 `week11-irq-kernel-recap check done`
   完整无误（1 张截图）。
-- Task2：`sys_write normal/buf=NULL/len=300` 三行输出，第一行为真实长度，
-  后两行均为 `-1`（1 张截图）。
 - 能说明：`make` 须在 WSL/Linux 执行，不能在 Windows PowerShell 直接执行。
 
 **提交清单**：
 
+- [ ] Task1 自己写的 `uart_putc_robust` 函数代码（纯文本）
 - [ ] Task1 进阶截图（轮询版 `uart_putc_robust` 接入后的完整串口输出）
-- [ ] Task2 进阶截图（`check_write_args` 接入后的三行返回值输出）
 
 不用交代码补丁、不用写报告、不留思考题。
 
-## 5. 常见故障速查
+## 7. 常见故障速查
 
 | 现象 | 处理 |
 |---|---|
@@ -387,10 +274,8 @@ make clean && make && make run
 | `wsl -d Ubuntu` 失败 | `wsl -l -v` 核对发行版名称；确认第 1 周已安装 Ubuntu |
 | Ubuntu 里 `command not found: make` | 见 runbook 安装交叉工具链 |
 | 找不到 Makefile | 检查是否已在 Ubuntu 中 `cd` 到 miniOS 根目录 |
-| `undefined reference to 'uart_read_reg'`（或 `sys_getlen`/`uart_putc_robust`/`check_write_args`） | 新 `.S` 文件没加进 `Makefile` 的 `SRCS_S`，或函数名忘了写 `.globl` |
+| `undefined reference to 'uart_read_reg'`（或 `uart_putc_robust`） | 新 `.S` 文件没加进 `Makefile` 的 `SRCS_S`，或函数名忘了写 `.globl` |
 | `'UART0_BASE' undeclared`（在 `kernel/main.c` 里） | `main.c` 顶部没加 `#include "uart.h"` |
 | 加了轮询后串口卡住不再输出 | `uart_putc_robust` 里 bit5 判断反了（该"为 1 才发"写成了"为 0 才发"），或跳转方向搞反导致死循环 |
 | 加了轮询后前面几行正常、后面突然乱码/卡住 | 检查 LSR/THR 的偏移有没有写反（`+5` 是 LSR，`+0` 是 THR），或者忘了每次循环都重新 `ld.bu` 读最新的 LSR 值 |
-| `sys_write buf=NULL` 那一次直接卡死/复位 | `check_write_args` 没接进 `sys_write`，或者接了但判断条件写反，`sys_write` 内部仍然对 NULL 指针做了读写 |
-| `sys_write len=300` 没有返回 -1 | `sltui` 的立即数或分支方向写错，检查"`len<257` 才合法"这个边界 |
 | 退不出 QEMU | Ctrl+a 然后 x |

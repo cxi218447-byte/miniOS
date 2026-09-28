@@ -163,6 +163,50 @@ git branch
 
 前面带 `*` 的那一行就是你当前所在的分支。
 
+### 5. 切下一次课的 tag 时，提示还有没保存的改动
+
+`git switch -c` 会报类似 `Please commit your changes or stash them before
+you switch branches` 或 `error: Your local changes to the following files
+would be overwritten by checkout` 的错误。
+
+先确认清楚：这些改动是不是你**不要了**、可以放弃的（比如上次课随手改的代码，
+没打算再要）。确认要放弃的话：
+
+```bash
+git reset --hard
+git switch -c my-0X-lab <下次课tag>
+```
+
+`git reset --hard` 会把所有**未提交**的改动清空且**无法恢复**，执行前一定要
+想清楚；如果改动里还有新建的文件（git 没跟踪过的），`git reset --hard` 不会
+删它们，仍然挡切换的话再补一条 `git clean -fd`。如果这些改动其实想留着，别执行
+这一步，先按 `docs/student_env_runbook.md` 的说明处理（比如另存一份代码）。
+
+### 6. 老师说某个 tag 更新了，但你 `git fetch --tags` 之后内容还是旧的
+
+`git fetch --tags` 默认**不会**覆盖你本地已经有、但指向了不同 commit 的同名
+tag——这种情况下 Git 会打印一行你很容易没注意到的提示：
+
+```
+! [rejected]        08-uart-syscall -> 08-uart-syscall  (would clobber existing tag)
+```
+
+然后**悄悄跳过**这个 tag，不会报错中断，你本地这个 tag 还是停在旧版本，代码
+（比如某个函数、某句注释）看着就是没更新。
+
+两种办法都能修，选一种：
+
+```bash
+git fetch --tags --force
+```
+
+```bash
+git tag -d 08-uart-syscall     # 换成实际的 tag 名
+git fetch --tags
+```
+
+跑完之后用 `git log -1 <tag名>` 看一眼 commit 信息/日期对不对，确认真的换了。
+
 ## 之后想看更完整的说明
 
 - 具体每次课的操作细节、tag 含义对照表：`docs/01/student_git_tag_guide.md`
