@@ -361,7 +361,7 @@ void kernel_main(void)
     __asm__ volatile("break 0");
     printk("resumed after break: ertn returned control here\n");
 
-    printk("week10-trap-irq check done\n");
+    printk("week09-trap-irq check done\n");
 
     while (1) {
         __asm__ volatile("idle 0");
