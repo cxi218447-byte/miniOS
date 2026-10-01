@@ -1,10 +1,7 @@
 # 第 9 次课实验指导书：异常与中断处理
 
 > 技术编号：`09`　|　建议检查点：`09-trap-irq`  
-> 称"第 9 次课"，不称"第 9 周"。配合讲义：`docs/09/lecture_notes.md`。  
-> **学生自学教材：** `docs/09/week09_异常与中断处理教材.md`——建议先读教材建立概念，再做下面的 Task1–Task6，卡壳时按 Task 里标注的教材节号去查对应讲解。  
-> 合并原第 12 次课（异常入口与异常上下文）+ 原第 13 次课（中断基础与定时器）**理论部分**。
-> 定时器上机实现留到第 11 次课（纯实验课），本次课任务以精读、对照与设计为主。  
+> **学生自学教材：** `docs/09/week09_教材_修改版.md`——建议先读教材 §2（`exception_entry` 逐行精读）、§3（`era + 4` 踩坑）再做下面的 Task1/Task2，卡壳时按 Task 里标注的教材节号去查对应讲解。  
 > **环境总手册：** `docs/student_env_runbook.md`  
 
 ## 0. 克隆仓库到本地（首次 / 换新位置 / GitHub 打不开用 Gitee）
@@ -43,13 +40,18 @@ git fetch --tags
 
 ## 1. 实验目标
 
-完成本次课最小可验证闭环，主题：**异常与中断处理**。
+完成本次课最小可验证闭环，主题：**异常处理**。
 
-预期/产出：
+本次实验共 **2 个任务**：
 
-```text
-exception_entry 指令表 + 异常vs中断对照表 + tick 设计（伪代码）
-```
+1. **Task1（跟着做）**：给出完整代码，照着抄进 `kernel/exception.c` 和 `kernel/main.c`，让
+   `exception_handler` 能区分出两种不同的同步异常（`break` 触发的 BRK、非法指令触发的
+   INE），跑起来看到两条不同的诊断输出；再亲手做一次 `era + 4` 踩坑实验。
+2. **Task2（进阶）**：只给规格不给代码——自己在 Task1 的基础上扩充判断分支，再新增第三
+   种异常来源（`syscall` 指令），当堂调试通过、截图。
+
+**提交需要两样东西**：① Task2 里自己写的 `exception_handler` 完整代码（贴纯文本即可）；
+② 验证成功后的串口输出截图。不用交完整代码补丁、不用交报告、不留思考题。
 
 ## 2. 实验环境与准备（必须先做对）
 
@@ -88,9 +90,10 @@ which make
 若在 PowerShell 直接 `make` 出现 `ObjectNotFound`：说明还没执行步骤 1。
 
 - 工具：`make`、`loongarch64-linux-gnu-gcc`、`qemu-system-loongarch64`
-- 重点文件：
-  - `boot/start.S`（`exception_entry`，本课新增）
-  - `kernel/exception.c`（本课可运行 demo：`exception_init`/`exception_handler`）
+- 重点文件（已有，本次课要修改）：
+  - `boot/start.S`（`exception_entry`，只读不改）
+  - `kernel/exception.c`（`exception_init`/`exception_handler`，**本课要改**）
+  - `kernel/main.c`（`kernel_main`，**本课要改**：新增异常触发点）
   - `include/exception.h`
 
 ### 2.2 关于 `my-weekXX-lab` 分支（必读）
@@ -104,7 +107,7 @@ which make
 
 ```bash
 git fetch --tags
-git switch -c my-09-lab <本次课tag>
+git switch -c my-09-lab 09-trap-irq
 ```
 
 | 名称 | 是什么 | 在远程 `origin` 上？ |
@@ -118,47 +121,77 @@ git switch -c my-09-lab <本次课tag>
 
 ## 3. 实验任务（默认均在已进入的 Ubuntu、仓库根目录）
 
-### Task1 精读异常入口
+**背景知识（两个任务都要用到）**：`exception_handler(estat, era)` 的第一个参数
+`ESTAT` 里有一个 **Ecode 字段**（第 21–16 位，共 6 位），标识"这次异常具体是哪一种"——
+教材 §2.2 已经提过一次（`break` 触发的异常 `Ecode=0xC`），本次课要求你实际把这个字段
+从 `estat` 里"抠"出来判断，而不是只在打印时肉眼看十六进制猜。取法：
 
-- 逐条注释 `exception_entry`，标出伸栈/存 `$ra`/`csrrd`/`bl`/恢复/`ertn`（对照教材 §2 逐行精读）。
-- 书面回答：本课的 `exception_entry` 为什么只存 `$ra` 就够了？这是不是"最终版本"（教材 §2.6"教学取舍"）？
+```c
+unsigned long ecode = (estat >> 16) & 0x3f;
+```
 
-### Task2 对照三条路径
+`>> 16` 把第 16 位移到最低位，`& 0x3f`（6 个 1）只保留这 6 位、盖掉其余无关位——
+和第 8 次课 Task1 进阶部分 `uart_putc_robust` 里"读 → 只留需要的那几位"是同一套
+思路，只是这次不是从内存读寄存器，而是从已经读进来的 `estat` 参数里挑位。
 
-- 比较普通 `bl`/`jr $ra`、异常 `ertn`、中断入口骨架三者的异同（讲义 §4.1，教材 §1）。
-- 说明为何不宜把普通 C 函数地址直接当异常向量（教材 §1.1）。
+### Task1（跟着做）：区分 BRK 与"未识别"异常 + 亲手踩一次 `era + 4` 的坑
 
-### Task3 初始化与观察
+#### 步骤 1：改 `kernel/exception.c`，让 `exception_handler` 能报出 Ecode
 
-- 解释 `exception_init` 写 EENTRY 的作用（教材 §4）。
-- 运行 `make run`，观察 `kernel_main` 用 `break 0` 主动触发的异常：`ESTAT`/`ERA` 真实打印值。
-- **踩坑题**：`exception_handler` 为什么要 `return era + 4`，而不是原样返回 `era`？（提示：先把 `return era + 4` 改回 `return era`，重新 `make run`，观察会发生什么，再改回来。教材 §3 有完整推导。）
+把 `exception_handler` 替换成下面这段完整代码（`exception_init` 不用改，保留原样）：
 
-### Task4 异常 vs 中断对照表
+```c
+unsigned long exception_handler(unsigned long estat, unsigned long era)
+{
+    /* Ecode：ESTAT 的 bit[21:16]，标识"这次异常具体是哪一种"。
+     * 编号以实测/讲义为准：0xC 是 break 触发的 BRK。 */
+    unsigned long ecode = (estat >> 16) & 0x3f;
 
-- 完成对照表：触发方式、可屏蔽性、教学重点。
-- 注释中断入口骨架（讲义 §4.5，教材 §6）为何比 `exception_entry` 更重（教材 §6.1 关键区别：中断可能打在任意一条指令之间）。
+    printk("[exception] ESTAT=0x");
+    printk_hex(estat);
+    printk(" ERA=0x");
+    printk_hex(era);
+    printk(" Ecode=0x");
+    printk_hex(ecode);
 
-### Task5 精读教材 §7.3 真实定时器代码 + tick 设计
+    if (ecode == 0xc) {
+        printk(" (BRK)\n");
+    } else {
+        printk(" (unrecognized)\n");
+    }
 
-教材 §7.3 给出了一段**首尾完整、CSR 编号真实**的定时器使能/处理/清源代码（不是纸面伪代码），本任务要求先精读它，再基于它做设计：
+    /* break/syscall 是精确异常，ERA 指向触发指令本身，必须 +4 跳过它，
+     * 否则 ertn 后原地再次触发，见教材 §3。 */
+    return era + 4;
+}
+```
 
-1. **精读使能代码**（教材 §7.3 第一步）：逐行解释为什么是"先 `csrrd` 读出 ECFG/CRMD 当前值，只改需要的那一位，再 `csrwr` 写回"，而不是直接拼一个新值写进去。
-2. **精读处理分支**（教材 §7.3 第二步）：在 `exception_handler` 新增的 `is & (1UL << 11)` 分支里，找出"配置→使能→处理→清源"四步（教材 §7.1）分别对应哪几行代码。
-3. **对比踩坑**：这个中断分支 `return era`（不 `+4`），Task3 的 `break` 分支 `return era + 4`——书面说明为什么两者刚好相反（教材 §7.3 第三步 vs §3）。
-4. **（选做）内联汇编语法**：解释 `__asm__ volatile("csrrd %0, 0x4" : "=r"(ecfg))` 里 `%0`、`"=r"` 分别是什么意思（教材 §7.3"内联汇编语法拆解"）。
-5. 基于以上精读结果，设计 `ticks` 变量与打印策略（每 N 次打一次），伪代码即可——具体上机实现放在第 11 次课。
-6. 说明 `ticks` 与第 2 次课 `.bss` 清零的关系（教材 §7.2）。
+#### 步骤 2：改 `kernel/main.c`，新增第二种异常触发
 
-### Task5.5 并发与临界区（必做，书面）
+找到现有的这两行（`break` 演示）：
 
-对应教材 §8，本课不要求实现锁，但要求想清楚风险和取舍：
+```c
+    __asm__ volatile("break 0");
+    printk("resumed after break: ertn returned control here\n");
+```
 
-1. 为什么主循环和中断处理函数同时 `printk` 会导致字符交错的乱码？（教材 §8.1，呼应第 8 次课"两个执行流同时 `printk` 会怎样"）
-2. "短时间关中断保护共享数据"这个对策的代价是什么？为什么关中断的时间不能太长？（教材 §8.2）
-3. 结合 Task4 的中断入口"更重"结论，说说"中断处理函数要尽量短"这条原则和本任务第 2 问是不是同一件事的两个角度。
+在它们**后面**紧接着加上：
 
-### Task6 运行验收
+```c
+    /* 触发第二种异常——非法指令（全 0 不是合法的 LoongArch 指令编码）。
+     * 用来验证 exception_handler 能识别出"这不是 BRK"。 */
+    __asm__ volatile(".word 0");
+    printk("resumed after illegal instruction\n");
+```
+
+同时把最后一行验收打印的周次前缀改对（如果你的本地代码还是旧的 `week10-...`，
+改成）：
+
+```c
+    printk("week09-trap-irq check done\n");
+```
+
+#### 步骤 3：编译运行，确认两条诊断都出现
 
 ```bash
 make clean
@@ -166,57 +199,96 @@ make
 make run
 ```
 
-核对串口输出（`Ctrl+a` 再 `x` 退出 QEMU）：
+应看到（`ERA` 的具体数值会随编译结果小幅变化，属正常现象；`ESTAT`/`Ecode` 应保持稳定）：
 
 ```text
 exception_init: EENTRY set to exception_entry
-[exception] ESTAT=0xc0000 ERA=0x200798
+[exception] ESTAT=0xc0000 ERA=0x200798 Ecode=0xc (BRK)
 resumed after break: ertn returned control here
+[exception] ESTAT=0xd0000 ERA=0x2007a4 Ecode=0xd (unrecognized)
+resumed after illegal instruction
 week09-trap-irq check done
 ```
 
-`ERA` 的具体数值会随编译结果小幅变化，属正常现象；`ESTAT=0xc0000`（Ecode=0xC，BRK）应保持稳定。
+第二条 `Ecode=0xd` 目前被判成 `(unrecognized)`——这是故意的，Task2 要求你把它也
+认出来。（Ctrl+a 再 x 退出 QEMU。）
+
+#### 步骤 4：亲手踩一次 `era + 4` 的坑（教材 §3.3）
+
+1. 把 `return era + 4;` 临时改成 `return era;`，重新 `make run`。
+2. **只需看第一条 `break` 诊断反复刷屏就够了**——串口会陷入
+   "触发异常 → 打印 → ertn 回到 break 指令本身 → 再次触发"的死循环，
+   永远走不到后面非法指令那一步。Ctrl+a 再 x 强制退出 QEMU。
+3. 改回 `return era + 4;`，重新 `make run`，确认恢复正常（两条诊断都出现，
+   打印到 `week09-trap-irq check done` 后停住）。
+
+### Task2（进阶，当堂调试 + 截图）：识别 INE，并新增第三种异常来源
+
+**要求**：在 Task1 的基础上（不给代码，只给规格）：
+
+1. **认出非法指令异常**：把 Task1 步骤 3 里观察到的 `Ecode=0xd` 也加进判断分支，
+   打印一个你自己起的名字（比如 `"INE"`），不能再停留在 `(unrecognized)`。
+2. **新增第三种触发**：在 `kernel_main` 里、非法指令 demo **之后**，用内联汇编执行一条
+   `syscall 0` 指令（写法参考步骤 2 里 `.word 0` 的接线方式，指令换成
+   `__asm__ volatile("syscall 0");`，后面配一行 `printk` 确认恢复执行）。
+   `syscall` 指令触发的是 CPU 硬件级别的 SYS 异常——跟第 9 次课之前
+   `syscall_dispatch()` 那种"直接调用 C 函数"的软件分发方式完全是两回事，
+   这里是让 CPU 真的走一次异常入口。
+3. **认出 SYS 异常**：运行一次，观察 `syscall 0` 对应的 Ecode 是多少（不要凭空套用
+   BRK/INE 的数字），把它也加进判断分支，打印你自己起的名字（比如 `"SYS"`）。
+4. 最终 `exception_handler` 要能对三种异常各自打印出**不同、正确**的名字，不允许出现
+   `(unrecognized)`；整机不能卡死，能正常打印到 `week09-trap-irq check done`。
+
+**验收**：
+
+```bash
+make clean && make && make run
+```
+
+三条 `[exception]` 诊断行都要出现，且分别标注为你自己起的三个不同名字，最后仍
+以 `week09-trap-irq check done` 收尾（Ctrl+a 再 x 退出 QEMU）。
+
+调通之后，提交下面两样东西：
+
+**代码：请提交你 Task2 改完后的完整 `exception_handler` 函数代码**
+
+把 `kernel/exception.c` 里 `exception_handler` 这一段原样贴在下面的文本框里（纯文本即可，不用上传图片）。
+
+**截图：贴出串口从 `exception_init: EENTRY set to exception_entry` 到 `week09-trap-irq check done` 的完整输出截图**
+
+证明三种异常都被正确识别，这是本次要交的截图。
 
 ## 4. 验收标准
 
-- 能说明为何入口要存 `$ra` 再 `bl` 到 C，能区分 ERA 与 `$ra`
-- 有书面的 `exception_entry` 指令影响表
-- 异常 vs 中断概念对照正确，tick 故事线完整
-- 提到 `.bss` 清零与 `ticks` 的关系
-- 能逐行解释教材 §7.3 真实代码里"先读再改再写"的 CSR 操作套路，能说明中断分支为什么 `return era` 而不是 `era + 4`（Task5）
-- 能说清主循环与中断同时 `printk` 为什么会乱码、关中断保护临界区的代价是什么（Task5.5）
-- 能说明：`make` 须在 WSL/Linux 执行，不能在 Windows PowerShell 直接执行
-- `make run` 输出与上方 Task6 摘录一致，能解释 `era + 4` 踩坑题
+- `exception_handler` 能从 `ESTAT` 里正确抠出 Ecode 字段（`(estat >> 16) & 0x3f`），
+  不是靠肉眼看打印猜测。
+- 三种异常（`break`/非法指令/`syscall`）各自打印出正确、不同的诊断名字，不允许
+  `(unrecognized)` 残留。
+- 亲手验证过 `era + 4` 踩坑：能说明去掉 `+ 4` 为什么会死循环（教材 §3）。
+- 整机运行不卡死、不崩溃，串口从 `exception_init: ...` 完整打印到
+  `week09-trap-irq check done`。
+- 能说明：`make` 须在 WSL/Linux 执行，不能在 Windows PowerShell 直接执行。
 
-## 5. 实验报告要求
+## 5. 报告要求
 
-报告至少包含：
+本次实验不要求提交单独的实验报告；学生提交的"报告正文"就是 Task2 里贴的
+`exception_handler` 函数代码文本本身。批改时对照上面的验收标准逐条核对这段
+代码和配套截图即可，不需要额外的文字说明。
 
-1. 环境说明（OS、是否 WSL、工具版本摘要）
-2. 关键命令与**真实输出**（可截断，但不可编造）
-3. 对核心代码/指令的简要注释或流程图
-4. 教材 §7.3 真实代码精读笔记（Task5）与并发/临界区书面作答（Task5.5）
-5. 问题与解决过程（若有）
-6. 思考题作答
+## 6. 验收与提交
 
-## 6. AI 共学边界
+- Task1：两种异常（BRK/非法指令）诊断均正确打印，`era + 4` 踩坑现象亲手观察过。
+- Task2：三种异常（BRK/INE/SYS）诊断均正确打印，无 `(unrecognized)` 残留（1 张截图）。
+- 能说明：`make` 须在 WSL/Linux 执行，不能在 Windows PowerShell 直接执行。
 
-允许解释 CSR 摘要、整理中断概念图、协助理解教材 §7.3 的内联汇编语法；编号/寄存器地址以讲义/教材/手册为准，不得凭空编造。
+**提交清单**：
 
-## 7. 思考题
+- [ ] Task2 改完后的完整 `exception_handler` 函数代码（纯文本）
+- [ ] Task2 验收截图（三种异常都被正确识别的完整串口输出）
 
-1. 处理函数内再次异常会怎样？
-2. 与中断入口的同构点与不同点？
-3. 为何中断处理要尽量短？
-4. tick 里做复杂内存分配的风险？
+不用交代码补丁、不用写报告、不留思考题。
 
-## 8. 提交清单
-
-- [ ] 实验报告（PDF/Markdown）
-- [ ] 关键输出摘录
-- [ ] 需要提交的代码补丁或笔记（按教师要求）
-
-## 9. 常见故障速查
+## 7. 常见故障速查
 
 | 现象 | 处理 |
 |---|---|
@@ -224,4 +296,6 @@ week09-trap-irq check done
 | `wsl -d Ubuntu` 失败 | `wsl -l -v` 核对发行版名称；确认第 1 周已安装 Ubuntu |
 | Ubuntu 里 `command not found: make` | 见 runbook 安装交叉工具链 |
 | 找不到 Makefile | 检查是否已在 Ubuntu 中 `cd` 到 miniOS 根目录 |
+| 加了非法指令/`syscall` 后整机卡死不再输出 | 检查 Ecode 判断分支有没有把某个 `if` 写成死循环，或者忘了在 `exception_handler` 末尾 `return era + 4;` |
+| `Ecode` 数值和别人不一样 | 检查 `(estat >> 16) & 0x3f` 有没有抄错位移/掩码；`ESTAT` 全值应保持稳定，抄错的通常是移位数或掩码位数 |
 | 退不出 QEMU | Ctrl+a 然后 x |
