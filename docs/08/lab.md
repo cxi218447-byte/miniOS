@@ -112,6 +112,32 @@ git fetch --tags
 git switch -c my-08-lab <本次课tag>
 ```
 
+**⚠️ `08-uart-syscall` 这个 tag 曾经被老师重新打过一次（挪到了更新的提
+交上）**：如果你之前已经 `fetch` 过一次 `08-uart-syscall`，这次重新 `git
+fetch --tags` **很可能不会自动更新它**——Git 默认不会覆盖本地已存在、但
+指向了不同 commit 的同名 tag，只会打印一行容易被忽略的提示（`[rejected]
+08-uart-syscall -> 08-uart-syscall  (would clobber existing tag)`），然
+后悄悄跳过，不报错。表现为：编译运行后串口输出在 `week08-uart-syscall
+check done` 或 `week09-trap-irq check done` 就停住了，**到不了**本课验
+收要求的 `week11-irq-kernel-recap check done`（见下方 §3 验收标准）。
+
+确认 + 修复（任选一种）：
+
+```bash
+git log -1 08-uart-syscall    # 看提交信息/日期，太旧就是本地没更新
+git fetch --tags --force
+```
+
+```bash
+git tag -d 08-uart-syscall
+git fetch --tags
+```
+
+跑完后重新执行上面的 `git switch -c my-08-lab 08-uart-syscall`（如果
+`my-08-lab` 已经从旧 tag 建过，先按 `docs/student_git_basics.md` §2 处理
+重名分支）。更完整的原理说明见 `docs/student_git_basics.md` §6「老师说某
+个 tag 更新了，但你 `git fetch --tags` 之后内容还是旧的」。
+
 | 名称 | 是什么 | 在远程 `origin` 上？ |
 |---|---|---|
 | 本次课 tag（如 `08-uart-syscall`） | 老师发布的固定验收快照 | **有** |
