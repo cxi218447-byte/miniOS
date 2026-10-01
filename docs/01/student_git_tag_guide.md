@@ -77,7 +77,6 @@ git tag
 07-libc-asm
 08-uart-syscall
 09-trap-irq
-10-build-debug
 11-irq-kernel-recap
 12-board-agent-demo
 ```

@@ -27,7 +27,7 @@
 - 第 7 次课：`memset`/`memcpy`/`strlen` 汇编实现（tag：`07-libc-asm`）
 - 第 8 次课：UART 驱动、输出子系统与系统调用 `sys_write`（tag：`08-uart-syscall`）
 - 第 9 次课：异常与中断处理（理论部分）（tag：`09-trap-irq`）
-- 第 10 次课：构建、链接与调试（tag：`10-build-debug`，2026-09-07 起移至此处作为理论收官，见 `docs/course_structure.md` §2.6）
+- 第 10 号：构建、链接与调试（课外阅读材料，无配套实验/tag，2026-10-01 起取消上机任务，见 `docs/course_structure.md` §2.7）
 - 第 11 次课：中断/定时器实验 + miniOS 内核服务整理（tag：`11-irq-kernel-recap`）
 - 第 12 次课：板级迁移 + 综合实验：从 miniOS 到 Agent OS（tag：`12-board-agent-demo`，与 `11-irq-kernel-recap` 同一代码状态——板级迁移需要真实 2K0300 硬件，综合展示直接复用已有 `kernel_main`）
 
@@ -44,8 +44,7 @@ git switch -c my-06-lab 06-stack-abi      # 第 6 次课：另建本地分支
 git switch -c my-07-lab 07-libc-asm       # 第 7 次课：另建本地分支
 git switch -c my-08-lab 08-uart-syscall   # 第 8 次课：另建本地分支
 git switch -c my-09-lab 09-trap-irq       # 第 9 次课：另建本地分支
-git switch -c my-10-lab 10-build-debug    # 第 10 次课：另建本地分支
-git switch -c my-11-lab 11-irq-kernel-recap  # 第 11 次课：另建本地分支
+git switch -c my-11-lab 11-irq-kernel-recap  # 第 11 次课：另建本地分支（第 10 号无实验，第 9 次课后直接进入第 11 次课）
 git switch -c my-12-lab 12-board-agent-demo  # 第 12 次课：另建本地分支
 ```
 
@@ -73,7 +72,6 @@ git switch -c my-12-lab 12-board-agent-demo  # 第 12 次课：另建本地分�
 | `07-libc-asm` | 第 7 次课验收 | `kernel/main.c` 新增 `memset`/`memcpy`/`strlen` 边界测试（实现沿用第 2 次课 `lib/string.S`）；原 `08-libc-asm` 改名 |
 | `08-uart-syscall` | 第 8 次课验收 | `kernel/syscall.c` + `include/syscall.h`：`sys_write`/`syscall_dispatch`（UART 驱动沿用第 1 次课）；原 `09-uart-syscall` 改名 |
 | `09-trap-irq` | 第 9 次课验收 | `boot/start.S` 新增 `exception_entry`；`kernel/exception.c` + `include/exception.h`：`exception_init`/`exception_handler`；原 `10-trap-irq` 改名 |
-| `10-build-debug` | 第 10 次课验收 | 与 `09-trap-irq` 相同代码：本课不新增源文件，只用 readelf/nm/objdump/GDB 分析已有构建产物；原 `07-build-debug` 改名并改指向 |
 | `11-irq-kernel-recap` | 第 11 次课验收 | `boot/start.S` `exception_entry` 升级为144字节完整寄存器保存；`kernel/irq.c` + `include/irq.h`：`timer_init`/`irq_dispatch`/`timer_stop`，`exception_handler` 新增 `Ecode==0` 中断分支 |
 | `12-board-agent-demo` | 第 12 次课验收 | 与 `11-irq-kernel-recap` 相同代码：板级迁移需要真实硬件，综合展示复用已有 `kernel_main` |
 

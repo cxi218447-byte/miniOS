@@ -40,7 +40,6 @@
 | `07-libc-asm` | 第 7 次课（已发布，原 `08-libc-asm` 改名） |
 | `08-uart-syscall` | 第 8 次课（已发布，原 `09-uart-syscall` 改名） |
 | `09-trap-irq` | 第 9 次课（已发布，原 `10-trap-irq` 改名） |
-| `10-build-debug` | 第 10 号（**可选自学验收 tag**，2026-09-17 起不再是正式课堂检查点；原 `07-build-debug` 改名并改指向 `09-trap-irq` 同一提交） |
 | `11-irq-kernel-recap` | 第 11 次课（已发布） |
 | `12-board-agent-demo` | 第 12 次课（已发布，与 `11-irq-kernel-recap` 同一代码） |
 
