@@ -2,7 +2,7 @@
  * miniOS 启动入口。
  * 第 1 次课：设栈 → 进入 kernel_main → halt。
  * 第 2 次课：在进入 C 前增加 clear_bss。
- * 第 10 次课：新增 exception_entry，供 exception_init 写入 CSR.EENTRY。
+ * 第 9 次课：新增 exception_entry，供 exception_init 写入 CSR.EENTRY。
  */
 
     .section .text.boot, "ax"
@@ -36,7 +36,7 @@ clear_bss:
     jr          $ra
 
 /*
- * ---- 第 10 次课：异常入口 ----
+ * ---- 第 9 次课：异常入口 ----
  * 硬件在异常发生时直接跳到 CSR.EENTRY 记录的地址（这里），
  * 而不是走 bl/jr $ra 的普通调用路径，所以现场要自己主动保存。
  * 返回用 ertn（把 PC 恢复为 ERA），不是 jr $ra。

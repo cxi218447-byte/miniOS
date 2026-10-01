@@ -5,11 +5,11 @@
  * 第 4 次课：精讲 §3.2 访存与第 4 章浮点的验收输出；
  * 第 5 次课：分支、循环与汇编程序设计基础的验收输出；
  * 第 6 次课：函数调用约定与栈帧的验收输出；
- * 第 8 次课：memset/memcpy/strlen 边界测试的验收输出
+ * 第 7 次课：memset/memcpy/strlen 边界测试的验收输出
  *   （实现见 lib/string.S，第 2 次课已具备，本课只做边界验收）；
- * 第 9 次课：sys_write/syscall_dispatch 的验收输出
+ * 第 8 次课：sys_write/syscall_dispatch 的验收输出
  *   （UART 驱动沿用第 1 次课的 uart_putc/uart_puts）；
- * 第 10 次课：exception_entry/exception_init 的验收输出
+ * 第 9 次课：exception_entry/exception_init 的验收输出
  *   （用 break 指令主动触发一次可控异常，观察 ESTAT/ERA）。
  */
 
@@ -282,7 +282,7 @@ void kernel_main(void)
 
     printk("week06-stack-abi check done\n");
 
-    /* ---- 第 8 次课：memset/memcpy/strlen 边界测试 ---- */
+    /* ---- 第 7 次课：memset/memcpy/strlen 边界测试 ---- */
     {
         char buf1[4] = { 'X', 'X', 'X', 'X' };
         char buf2[4] = { 'X', 'X', 'X', 'X' };
@@ -322,9 +322,9 @@ void kernel_main(void)
         printk(" (应为 0；非空串已在第 5 次课验收)\n");
     }
 
-    printk("week08-libc-asm check done\n");
+    printk("week07-libc-asm check done\n");
 
-    /* ---- 第 9 次课：UART 输出子系统 + sys_write/syscall_dispatch 验收 ---- */
+    /* ---- 第 8 次课：UART 输出子系统 + sys_write/syscall_dispatch 验收 ---- */
     {
         static const char sys_msg[] = "sys_write via dispatch\n";
 
@@ -348,9 +348,9 @@ void kernel_main(void)
         printk(" (应为 -1，未知系统调用号)\n");
     }
 
-    printk("week09-uart-syscall check done\n");
+    printk("week08-uart-syscall check done\n");
 
-    /* ---- 第 10 次课：异常入口与异常上下文验收 ---- */
+    /* ---- 第 9 次课：异常入口与异常上下文验收 ---- */
     exception_init();
     printk("exception_init: EENTRY set to exception_entry\n");
     /*

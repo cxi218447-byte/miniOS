@@ -1,5 +1,5 @@
 /*
- * 第 9 次课：最小系统调用接口声明。
+ * 第 8 次课：最小系统调用接口声明。
  * 实现见 kernel/syscall.c。
  */
 #ifndef MINIOS_SYSCALL_H
