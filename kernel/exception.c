@@ -9,9 +9,6 @@
 #include "printk.h"
 #include "irq.h"
 
-#define ESTAT_ECODE_MASK 0x3fUL
-#define ESTAT_ECODE_SHIFT 16
-
 void exception_init(void)
 {
     unsigned long entry = (unsigned long)exception_entry;
@@ -22,7 +19,7 @@ void exception_init(void)
 
 unsigned long exception_handler(unsigned long estat, unsigned long era)
 {
-    unsigned long ecode = (estat >> ESTAT_ECODE_SHIFT) & ESTAT_ECODE_MASK;
+    unsigned long ecode = ecode_from_estat(estat);
 
     if (ecode == 0) {
         /*

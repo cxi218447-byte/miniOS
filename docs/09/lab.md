@@ -94,7 +94,10 @@ which make
   - `boot/start.S`（`exception_entry`，只读不改）
   - `kernel/exception.c`（`exception_init`/`exception_handler`，**本课要改**）
   - `kernel/main.c`（`kernel_main`，**本课要改**：新增异常触发点）
-  - `include/exception.h`
+  - `include/exception.h`（**本课要改**：新增 `ecode_from_estat` 声明）
+  - `Makefile`（**本课要改**：把新文件加进 `SRCS_S`）
+- 本次课要新建的文件：
+  - `lib/ecode.S`（纯汇编实现 Ecode 提取，见 Task1 步骤 1）
 
 ### 2.2 关于 `my-weekXX-lab` 分支（必读）
 
@@ -121,22 +124,138 @@ git switch -c my-09-lab 09-trap-irq
 
 ## 3. 实验任务（默认均在已进入的 Ubuntu、仓库根目录）
 
-**背景知识（两个任务都要用到）**：`exception_handler(estat, era)` 的第一个参数
+**背景知识（两个任务都要用到）**：
+
+**1. Ecode 字段怎么取。** `exception_handler(estat, era)` 的第一个参数
 `ESTAT` 里有一个 **Ecode 字段**（第 21–16 位，共 6 位），标识"这次异常具体是哪一种"——
 教材 §2.2 已经提过一次（`break` 触发的异常 `Ecode=0xC`），本次课要求你实际把这个字段
-从 `estat` 里"抠"出来判断，而不是只在打印时肉眼看十六进制猜。取法：
+从 `estat` 里"抠"出来判断，而不是只在打印时肉眼看十六进制猜。按 LoongArch 调用
+约定，第一个参数 `estat` 在 `$a0` 里，取法的纯汇编写法：
 
-```c
-unsigned long ecode = (estat >> 16) & 0x3f;
+```asm
+srli.d  $t0, $a0, 16     # 逻辑右移 16 位，把 Ecode 这 6 位移到最低位
+andi    $t0, $t0, 0x3f   # 只保留低 6 位（6 个 1），盖掉其余无关位
+                         # 此刻 $t0 就是 ecode
 ```
 
-`>> 16` 把第 16 位移到最低位，`& 0x3f`（6 个 1）只保留这 6 位、盖掉其余无关位——
-和第 8 次课 Task1 进阶部分 `uart_putc_robust` 里"读 → 只留需要的那几位"是同一套
-思路，只是这次不是从内存读寄存器，而是从已经读进来的 `estat` 参数里挑位。
+Task1 步骤 1 会让你把这段汇编原样存成新文件 `lib/ecode.S`，编译成一个真正的函数
+`ecode_from_estat`，`kernel/exception.c` 里直接调用它，不再在 C 里写位运算：
+
+```c
+unsigned long ecode = ecode_from_estat(estat);
+```
+
+`srli.d`（逻辑右移）对应 `>> 16`，`andi`（按位与）对应 `& 0x3f`——和第 8 次课 Task1
+进阶部分 `uart_putc_robust` 里"读 → 只留需要的那几位"是同一套思路，只是这次不是
+从内存读寄存器，而是从已经读进来的 `estat` 参数（也就是 `$a0`）里挑位；区别在于这次
+直接用汇编写成一个独立函数，而不是嵌在 C 表达式里。
+
+**2. `__asm__ volatile("...")` 是什么。** 下面 Task1 步骤 4 的给定代码、以及 Task2 要你
+自己新增的 `syscall` 触发，都是这种写法——这是 GCC 的内联汇编扩展语法，把一条机器指令
+原样塞进 C 代码里：
+
+- `__asm__`：告诉编译器"接下来这段是汇编指令，不是 C 语句"。
+- `volatile`：禁止编译器因为"看不出这条指令产生了什么结果"就把它优化掉或挪动执行
+  顺序——对 `break 0`/`.word 0`/`syscall 0` 这种"故意制造异常、没有返回值"的指令
+  至关重要，不加 `volatile`，编译器可能认为这条指令"没用"而直接删掉它。
+- 双引号里就是一条真实的 LoongArch 汇编指令，跟 `boot/start.S` 里写的是同一套指令
+  集，会被原样编译进去。
+- 本课 Task1/Task2 要你自己写的触发指令都只用这种最简单的"无操作数"形式。但
+  `exception_init`（`kernel/exception.c` 里已经写好，本课不用改）内部用的是
+  "带冒号"的完整形式，值得展开认识一下——以后要写"指令需要读写某个 C 变量"的内联
+  汇编时会用到，本课不要求你自己动手写，但要能看懂。
+
+**带冒号的完整语法**：
+
+```c
+__asm__ volatile("指令模板" : 输出操作数 : 输入操作数 : 被影响的寄存器/内存);
+```
+
+用三个冒号隔开四段，哪段没有就留空，但冒号本身不能省（只有从某段往后都不需要时，
+才能把那些冒号整体省掉——前面点 1 的"无操作数"形式就是把四段全省了）。以
+`exception_init` 这一行为例：
+
+```c
+unsigned long entry = (unsigned long)exception_entry;
+__asm__ volatile("csrwr %0, 0xc" : : "r"(entry) : "memory");
+```
+
+- **指令模板** `"csrwr %0, 0xc"`：`%0` 是占位符，代表"操作数列表里第 0 个"，编译
+  器最终会把它替换成实际分配到的寄存器名。
+- **输出操作数**（第一个冒号后面）：这里是空的——这条指令不往任何 C 变量里写结果。
+- **输入操作数**（第二个冒号后面）：`"r"(entry)`——`"r"` 是约束，告诉编译器"把
+  `entry` 的值放进任意一个通用寄存器"，具体用哪个寄存器由编译器挑（可能是 `$t0`，
+  也可能是别的），再拿这个寄存器名替换模板里的 `%0`。生成的汇编大致形如
+  `csrwr $t0, 0xc`，具体用哪个寄存器你写代码时不用关心。
+- **clobber 列表**（第三个冒号后面）：`"memory"`——告诉编译器"这条指令可能影响
+  内存"，编译器不能假设指令前后内存内容没变，不会为了优化把内存读写重排到这条指
+  令前后。`csrwr` 本身不直接碰内存，但写 EENTRY 这件事关系到"后续代码能不能被异
+  常安全打断"，属于编译器看不出来的隐藏副作用，所以保险起见加上 `"memory"`。
+
+**如果还要把执行结果写回 C 变量**（带输出操作数的例子，帮助对比记忆，本课不要求
+自己写）：
+
+```c
+unsigned long estat;
+__asm__ volatile("csrrd %0, 0x5" : "=r"(estat));
+```
+
+- `%0` 这次对应的是**输出**操作数 `"=r"(estat)`：前面的 `=` 表示"这是一个输出，
+  指令执行完要把结果写回这里"，`r` 仍表示"用任意通用寄存器"。编译器会生成类似
+  `csrrd $t0, 0x5`，再把 `$t0` 的值赋给 `estat`。
+- 输入、clobber 两段都是空的，直接收尾，不用再写多余的冒号。
+
+记口诀：**模板里的 `%0 %1 ...` 按"输出在前、输入在后"的顺序对应操作数列表；括号
+里的 C 变量名告诉编译器要读写哪个变量；约束字符串（`r`/`=r` 等）告诉编译器用什么
+方式（通常是某个寄存器）跟这个变量打交道。**
 
 ### Task1（跟着做）：区分 BRK 与"未识别"异常 + 亲手踩一次 `era + 4` 的坑
 
-#### 步骤 1：改 `kernel/exception.c`，让 `exception_handler` 能报出 Ecode
+#### 步骤 1：新建 `lib/ecode.S`，用纯汇编实现 Ecode 提取
+
+在仓库根目录新建文件 `lib/ecode.S`，内容如下（对应前面背景知识点 1 的汇编写法）：
+
+```asm
+/*
+ * 第 9 次课：从 ESTAT 里取出 Ecode 字段（bit[21:16]，共 6 位）。
+ * 对应 C 写法：(estat >> 16) & 0x3f —— 这里用纯汇编实现同一件事，
+ * 调用方式和普通 C 函数一样：ecode_from_estat(estat)。
+ */
+
+    .section .text
+
+    .globl ecode_from_estat
+ecode_from_estat:
+    srli.d      $a0, $a0, 16      /* 逻辑右移 16 位，Ecode 落到最低 6 位 */
+    andi        $a0, $a0, 0x3f    /* 只保留低 6 位，盖掉其余无关位 */
+    jr          $ra               /* 返回值仍在 $a0，LoongArch 调用约定 */
+```
+
+#### 步骤 2：把新文件接入构建
+
+1. 打开 `include/exception.h`，在 `void exception_init(void);` 下面加一行声明：
+
+   ```c
+   /* 从 ESTAT 里取出 Ecode 字段（bit[21:16]），纯汇编实现见 lib/ecode.S */
+   unsigned long ecode_from_estat(unsigned long estat);
+   ```
+
+2. 打开 `Makefile`，在 `SRCS_S :=` 列表末尾加上新文件（跟现有几行对齐）：
+
+   ```makefile
+   SRCS_S := \
+   	boot/start.S \
+   	lib/string.S \
+   	lib/regs_alu.S \
+   	lib/mem_fp.S \
+   	lib/branch_loop.S \
+   	lib/stack_abi.S \
+   	lib/ecode.S
+   ```
+
+   不加这一行，`lib/ecode.S` 不会被编译，链接时会报 `ecode_from_estat` 未定义。
+
+#### 步骤 3：改 `kernel/exception.c`，让 `exception_handler` 能报出 Ecode
 
 把 `exception_handler` 替换成下面这段完整代码（`exception_init` 不用改，保留原样）：
 
@@ -144,8 +263,9 @@ unsigned long ecode = (estat >> 16) & 0x3f;
 unsigned long exception_handler(unsigned long estat, unsigned long era)
 {
     /* Ecode：ESTAT 的 bit[21:16]，标识"这次异常具体是哪一种"。
-     * 编号以实测/讲义为准：0xC 是 break 触发的 BRK。 */
-    unsigned long ecode = (estat >> 16) & 0x3f;
+     * 编号以实测/讲义为准：0xC 是 break 触发的 BRK。
+     * 提取逻辑在 lib/ecode.S 里用纯汇编实现，这里只是调用。 */
+    unsigned long ecode = ecode_from_estat(estat);
 
     printk("[exception] ESTAT=0x");
     printk_hex(estat);
@@ -166,7 +286,7 @@ unsigned long exception_handler(unsigned long estat, unsigned long era)
 }
 ```
 
-#### 步骤 2：改 `kernel/main.c`，新增第二种异常触发
+#### 步骤 4：改 `kernel/main.c`，新增第二种异常触发
 
 找到现有的这两行（`break` 演示）：
 
@@ -191,7 +311,7 @@ unsigned long exception_handler(unsigned long estat, unsigned long era)
     printk("week09-trap-irq check done\n");
 ```
 
-#### 步骤 3：编译运行，确认两条诊断都出现
+#### 步骤 5：编译运行，确认两条诊断都出现
 
 ```bash
 make clean
@@ -213,7 +333,7 @@ week09-trap-irq check done
 第二条 `Ecode=0xd` 目前被判成 `(unrecognized)`——这是故意的，Task2 要求你把它也
 认出来。（Ctrl+a 再 x 退出 QEMU。）
 
-#### 步骤 4：亲手踩一次 `era + 4` 的坑（教材 §3.3）
+#### 步骤 6：亲手踩一次 `era + 4` 的坑（教材 §3.3）
 
 1. 把 `return era + 4;` 临时改成 `return era;`，重新 `make run`。
 2. **只需看第一条 `break` 诊断反复刷屏就够了**——串口会陷入
@@ -226,10 +346,10 @@ week09-trap-irq check done
 
 **要求**：在 Task1 的基础上（不给代码，只给规格）：
 
-1. **认出非法指令异常**：把 Task1 步骤 3 里观察到的 `Ecode=0xd` 也加进判断分支，
+1. **认出非法指令异常**：把 Task1 步骤 5 里观察到的 `Ecode=0xd` 也加进判断分支，
    打印一个你自己起的名字（比如 `"INE"`），不能再停留在 `(unrecognized)`。
 2. **新增第三种触发**：在 `kernel_main` 里、非法指令 demo **之后**，用内联汇编执行一条
-   `syscall 0` 指令（写法参考步骤 2 里 `.word 0` 的接线方式，指令换成
+   `syscall 0` 指令（写法参考步骤 4 里 `.word 0` 的接线方式，指令换成
    `__asm__ volatile("syscall 0");`，后面配一行 `printk` 确认恢复执行）。
    `syscall` 指令触发的是 CPU 硬件级别的 SYS 异常——跟第 9 次课之前
    `syscall_dispatch()` 那种"直接调用 C 函数"的软件分发方式完全是两回事，
@@ -260,8 +380,8 @@ make clean && make && make run
 
 ## 4. 验收标准
 
-- `exception_handler` 能从 `ESTAT` 里正确抠出 Ecode 字段（`(estat >> 16) & 0x3f`），
-  不是靠肉眼看打印猜测。
+- `exception_handler` 能通过 `lib/ecode.S` 里的 `ecode_from_estat` 正确抠出 Ecode
+  字段（`srli.d` + `andi`，等价于 `(estat >> 16) & 0x3f`），不是靠肉眼看打印猜测。
 - 三种异常（`break`/非法指令/`syscall`）各自打印出正确、不同的诊断名字，不允许
   `(unrecognized)` 残留。
 - 亲手验证过 `era + 4` 踩坑：能说明去掉 `+ 4` 为什么会死循环（教材 §3）。
@@ -296,6 +416,7 @@ make clean && make && make run
 | `wsl -d Ubuntu` 失败 | `wsl -l -v` 核对发行版名称；确认第 1 周已安装 Ubuntu |
 | Ubuntu 里 `command not found: make` | 见 runbook 安装交叉工具链 |
 | 找不到 Makefile | 检查是否已在 Ubuntu 中 `cd` 到 miniOS 根目录 |
+| 链接报 `undefined reference to 'ecode_from_estat'` | `lib/ecode.S` 没有被编译：检查 `Makefile` 的 `SRCS_S` 列表末尾有没有加上 `lib/ecode.S` 这一行 |
 | 加了非法指令/`syscall` 后整机卡死不再输出 | 检查 Ecode 判断分支有没有把某个 `if` 写成死循环，或者忘了在 `exception_handler` 末尾 `return era + 4;` |
-| `Ecode` 数值和别人不一样 | 检查 `(estat >> 16) & 0x3f` 有没有抄错位移/掩码；`ESTAT` 全值应保持稳定，抄错的通常是移位数或掩码位数 |
+| `Ecode` 数值和别人不一样 | 检查 `lib/ecode.S` 里 `srli.d`/`andi` 的位移数、掩码有没有抄错；`ESTAT` 全值应保持稳定，抄错的通常是移位数或掩码位数 |
 | 退不出 QEMU | Ctrl+a 然后 x |

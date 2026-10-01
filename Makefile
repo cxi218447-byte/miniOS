@@ -30,7 +30,8 @@ SRCS_S := \
 	lib/regs_alu.S \
 	lib/mem_fp.S \
 	lib/branch_loop.S \
-	lib/stack_abi.S
+	lib/stack_abi.S \
+	lib/ecode.S
 
 OBJS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(SRCS_C))
 OBJS += $(patsubst %.S,$(BUILD_DIR)/%.o,$(SRCS_S))

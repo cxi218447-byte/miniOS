@@ -10,6 +10,9 @@ void exception_entry(void);
 
 void exception_init(void);
 
+/* 从 ESTAT 里取出 Ecode 字段（bit[21:16]），纯汇编实现见 lib/ecode.S */
+unsigned long ecode_from_estat(unsigned long estat);
+
 /* 返回值是"下一次该从哪里继续执行"的新 ERA，由 exception_entry 写回 CSR.ERA */
 unsigned long exception_handler(unsigned long estat, unsigned long era);
 
