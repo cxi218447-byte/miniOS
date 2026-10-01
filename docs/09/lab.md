@@ -113,6 +113,32 @@ git fetch --tags
 git switch -c my-09-lab 09-trap-irq
 ```
 
+**⚠️ `09-trap-irq` 这个 tag 本次课曾经被老师改过一次内容（修正了重编号前残
+留的旧周次标签）**：如果你之前已经 `fetch` 过一次 `09-trap-irq`，这次重新
+`git fetch --tags` **很可能不会自动更新它**——Git 默认不会覆盖本地已存在、
+但指向了不同 commit 的同名 tag，只会打印一行容易被忽略的提示（`[rejected]
+09-trap-irq -> 09-trap-irq  (would clobber existing tag)`），然后悄悄跳过，
+不报错。表现为：`kernel/main.c` 里第 8 次课那段看着还是"memset/memcpy 边
+界测试"而不是"UART 验收"，或者结尾打印字符串还是 `week10-trap-irq`——说明
+你本地这个 tag 还停在重编号之前的旧版本。
+
+确认 + 修复（任选一种）：
+
+```bash
+git log -1 09-trap-irq    # 看提交信息里有没有 "fix(09)" 字样，没有就是旧版本
+git fetch --tags --force
+```
+
+```bash
+git tag -d 09-trap-irq
+git fetch --tags
+```
+
+跑完后重新执行上面的 `git switch -c my-09-lab 09-trap-irq`（如果 `my-09-lab`
+已经从旧 tag 建过，先按下面"常见问题"或 `docs/student_git_basics.md` §2 处
+理重名分支）。更完整的原理说明见 `docs/student_git_basics.md` §6「老师说某
+个 tag 更新了，但你 `git fetch --tags` 之后内容还是旧的」。
+
 | 名称 | 是什么 | 在远程 `origin` 上？ |
 |---|---|---|
 | 本次课 tag（如 `09-trap-irq`） | 老师发布的固定验收快照 | **有** |
@@ -122,7 +148,7 @@ git switch -c my-09-lab 09-trap-irq
 - 远程没有 `my-weekXX-lab` 是正常设计。
 - 详见：`docs/01/student_git_tag_guide.md`、`docs/student_env_runbook.md`。
 
-## 3. 实验任务（默认均在已进入的 Ubuntu、仓库根目录）
+## 3. Task1 操作步骤（默认均在已进入的 Ubuntu、仓库根目录；跟着抄代码即可，不需要单独提交任何东西）
 
 **背景知识（两个任务都要用到）**：
 
@@ -342,6 +368,8 @@ week09-trap-irq check done
 3. 改回 `return era + 4;`，重新 `make run`，确认恢复正常（两条诊断都出现，
    打印到 `week09-trap-irq check done` 后停住）。
 
+## 4. 实验任务（只有 Task2 需要提交）
+
 ### Task2（进阶，当堂调试 + 截图）：识别 INE，并新增第三种异常来源
 
 **要求**：在 Task1 的基础上（不给代码，只给规格）：
@@ -378,37 +406,16 @@ make clean && make && make run
 
 证明三种异常都被正确识别，这是本次要交的截图。
 
-## 4. 验收标准
+## 5. 验收标准
 
-- `exception_handler` 能通过 `lib/ecode.S` 里的 `ecode_from_estat` 正确抠出 Ecode
-  字段（`srli.d` + `andi`，等价于 `(estat >> 16) & 0x3f`），不是靠肉眼看打印猜测。
-- 三种异常（`break`/非法指令/`syscall`）各自打印出正确、不同的诊断名字，不允许
-  `(unrecognized)` 残留。
-- 亲手验证过 `era + 4` 踩坑：能说明去掉 `+ 4` 为什么会死循环（教材 §3）。
-- 整机运行不卡死、不崩溃，串口从 `exception_init: ...` 完整打印到
-  `week09-trap-irq check done`。
-- 能说明：`make` 须在 WSL/Linux 执行，不能在 Windows PowerShell 直接执行。
+- `exception_handler` 通过 `lib/ecode.S` 里的 `ecode_from_estat` 正确算出 Ecode
+  （`(estat >> 16) & 0x3f`），不是肉眼读十六进制猜出来的。
+- 三种异常（`break`/非法指令/`syscall`）各自打印出正确、不同的名字，不允许残留
+  `(unrecognized)`。
+- 亲手做过 `era + 4` 踩坑实验，能说出去掉 `+ 4` 为什么会死循环。
+- 整机不卡死，串口从 `exception_init: ...` 完整打印到 `week09-trap-irq check done`。
 
-## 5. 报告要求
-
-本次实验不要求提交单独的实验报告；学生提交的"报告正文"就是 Task2 里贴的
-`exception_handler` 函数代码文本本身。批改时对照上面的验收标准逐条核对这段
-代码和配套截图即可，不需要额外的文字说明。
-
-## 6. 验收与提交
-
-- Task1：两种异常（BRK/非法指令）诊断均正确打印，`era + 4` 踩坑现象亲手观察过。
-- Task2：三种异常（BRK/INE/SYS）诊断均正确打印，无 `(unrecognized)` 残留（1 张截图）。
-- 能说明：`make` 须在 WSL/Linux 执行，不能在 Windows PowerShell 直接执行。
-
-**提交清单**：
-
-- [ ] Task2 改完后的完整 `exception_handler` 函数代码（纯文本）
-- [ ] Task2 验收截图（三种异常都被正确识别的完整串口输出）
-
-不用交代码补丁、不用写报告、不留思考题。
-
-## 7. 常见故障速查
+## 6. 常见故障速查
 
 | 现象 | 处理 |
 |---|---|
