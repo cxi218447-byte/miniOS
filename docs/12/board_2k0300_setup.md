@@ -1179,16 +1179,38 @@ static void shell_timer(void)
      * 调用前后的差值跟 5 比较，才能保证每次敲都等到 5 个新 tick。
      */
     unsigned long start = irq_ticks();
+    unsigned long seen = 0;
 
     timer_init(TIMER_COUNT);
     printk("timer_init: periodic timer interrupt enabled\n");
+
+    /*
+     * 你自己在第 11 次课已经把 irq_dispatch 的 ISR 瘦身过——中断里只
+     * 清源+记账，不再直接 printk。tick #N 与 TVAL 打印这个"下半部"
+     * 原来放在 kernel_main 的 while 里，这里换成这条可重复敲的 shell
+     * 命令自己做，跟当时的写法是同一个套路。
+     */
     while (irq_ticks() - start < 5) {
         __asm__ volatile("idle 0");
+
+        while (seen < irq_ticks() - start) {
+            seen++;
+            printk("tick #");
+            printk_udec(seen);
+            printk("\n");
+            printk("  TVAL now=0x");
+            printk_hex(timer_read_remaining());
+            printk("\n");
+        }
     }
     timer_stop();
     printk("collected 5 timer ticks via interrupt, timer_stop() called\n");
 }
 ```
+
+用的是你第 11 次课自己写的 `timer_read_remaining()`（§5 Task 2）——这里
+不是重新发明一套，只是把载体从 `kernel_main` 的 `while` 换成了这条可以
+重复敲的 shell 命令。
 
 `shell_dispatch` 加一行 `else if (strcmp(cmd, "timer") == 0) { shell_timer(); }`，
 `help` 的输出也把 `timer` 加进去。
