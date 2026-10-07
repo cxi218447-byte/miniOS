@@ -7,9 +7,8 @@
 
 ## 教师 / 学生资料
 
-- [教师讲义 lecture_notes.md](lecture_notes.md)
-- [实验指导书 lab.md](lab.md)
-- [代码解读 code_walkthrough.md](code_walkthrough.md)（中断/定时器部分从哪开始读、阅读顺序、涉及知识点的完整介绍；库函数部分见 lecture_notes.md §4）
+- [实验指导书 lab_v2.md](lab_v2.md)
+- [代码解读 code_walkthrough.md](code_walkthrough.md)（中断/定时器部分从哪开始读、阅读顺序、涉及知识点的完整介绍；库函数部分见 lab_v2.md §4）
 - [课堂 PPT 11_irq_kernel_recap_course.pptx](11_irq_kernel_recap_course.pptx)（`python scripts/generate_week11_course_ppt.py` 生成，待同步新的三单元结构）
 - 讲义 PDF / 实验指导书 PDF：待生成（`python scripts/generate_all_labs.py` + `python scripts/md_to_pdf.py`）
 

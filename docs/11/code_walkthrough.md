@@ -1,7 +1,7 @@
 # 第 11 次课代码解读：中断/定时器实验怎么读
 
 > 技术编号：`11`　|　建议检查点：`11-irq-kernel-recap`
-> 配合讲义：[lecture_notes.md](lecture_notes.md)　|　配合实验：[lab.md](lab.md)
+> 配合实验：[lab_v2.md](lab_v2.md)
 >
 > 本文档面向"看代码但不知道从哪下手"的场景：先给整体定位，再给阅读顺序，
 > 再把涉及的知识点讲完整，最后逐文件精读并串成一条完整时序。
@@ -206,7 +206,7 @@ exception_entry:
 ### 第3步：`kernel/exception.c` 的 `exception_handler`(判断异常还是中断)
 
 ```c
-unsigned long ecode = (estat >> 16) & 0x3f;   // 取出 ESTAT 的 Ecode 字段
+unsigned long ecode = ecode_from_estat(estat);   // 取出 ESTAT 的 Ecode 字段，纯汇编实现见 lib/ecode.S
 if (ecode == 0) {
     irq_dispatch(estat);   // ecode==0 按硬件定义就是"中断类"
     return era;             // 中断：原样返回，不加4
@@ -273,6 +273,6 @@ CPU 跳回 idle 的下一条指令 → while 重新判断 irq_ticks()<5
 ```
 
 把这张图和前面每一步的代码对照着看几遍，理解上还卡住的地方，可以对照
-[lecture_notes.md](lecture_notes.md) §4 的课堂讲法，或直接在 `kernel/irq.c`、
+`lab_v2.md` §5.0 的讲法，或直接在 `kernel/irq.c`、
 `kernel/exception.c`、`boot/start.S` 里找到对应行，边看代码边核对本文的
 说明。
