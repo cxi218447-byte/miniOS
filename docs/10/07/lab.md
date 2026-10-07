@@ -1,7 +1,7 @@
 # 第 7 次课实验指导书：独立实现 strncmp
 
 > 技术编号：`07`　|　检查点：`07-libc-asm`
-> 配合讲义：`docs/07/lecture_notes.md`、PPT：`docs/07/07.pptx`
+> 配合讲义：`docs/10/07/lecture_notes.md`、PPT：`docs/10/07/07.pptx`
 > **环境总手册：** `docs/student_env_runbook.md`
 
 ## 1. 实验目标

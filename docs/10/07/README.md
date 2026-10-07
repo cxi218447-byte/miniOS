@@ -36,5 +36,6 @@
 ## 说明
 
 - 称“第 7 次课”，不称“第 7 周”。
-- 总结构见 [../course_structure.md](../course_structure.md)
-- 总索引见 [../lecture_notes_index.md](../lecture_notes_index.md)
+- 本号已从正式课堂编号中取消，归档说明见 [../README.md](../README.md)
+- 总结构见 [../../course_structure.md](../../course_structure.md)
+- 总索引见 [../../lecture_notes_index.md](../../lecture_notes_index.md)
