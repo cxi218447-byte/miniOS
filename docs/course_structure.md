@@ -266,8 +266,11 @@ animations/          # 可选
 08-uart-syscall         # 第 8 次课（已发布；原 09-uart-syscall 改名；kernel/syscall.c + include/syscall.h）
 09-trap-irq             # 第 9 次课（已发布；原 10-trap-irq 改名；boot/start.S exception_entry + kernel/exception.c）
 11-irq-kernel-recap      # 第 11 次课（已发布；exception_entry 升级144字节 + kernel/irq.c 定时器中断，4 学时连排）
-12-board-agent-demo      # 第 12 次课（已发布；与 11-irq-kernel-recap 同一代码，板级需真实硬件，4 学时连排）
 ```
+
+**2026-10-08 更新**：第 12 次课（板级迁移 + 综合实验：从 miniOS 到 Agent OS）已整体迁出到独立仓库
+`miniOS-board-shell`；本仓库自此只维护到第 11 次课。`docs/12/`、`scripts/generate_week12_course_ppt.py`
+以及 tag `12-board-2k0300-week1-8`/`12-board-agent-demo` 已从本仓库删除。
 
 学生示例：
 

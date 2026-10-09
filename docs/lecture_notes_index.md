@@ -22,7 +22,8 @@
 | 第 9 次课 | `09` | 异常与中断处理（合并原异常入口/异常上下文 + 中断基础与定时器理论） | [09/lecture_notes.md](09/lecture_notes.md) |
 | 第 10 号 | `10` | **课外自学**：第 7 次课归档 + 补充 PPT 合集（原「构建、链接与调试」已删除，不再提供）；不占课堂学时，2026-10-07 起见 §2.9 | [10/README.md](10/README.md) |
 | 第 11 次课 | `11` | 中断/定时器实验 + miniOS 内核服务整理（纯实验，4 学时连排） | [11/lecture_notes.md](11/lecture_notes.md) |
-| 第 12 次课 | `12` | 板级迁移 + 综合实验：从 miniOS 到 Agent OS（纯实验，4 学时连排） | [12/board_2k0300_setup.md](12/board_2k0300_setup.md) |
+
+第 12 次课（板级迁移 + 综合实验：从 miniOS 到 Agent OS）已迁出到独立仓库 `miniOS-board-shell`，`docs/12/` 与对应 tag 已从本仓库删除。
 
 **2026-09-07 更新**：第 7/8/9/10 次课重排，「构建、链接与调试」从第 7 次课移到第 10 次课（理论收官），原第 8/9/10 次课依次前移为第 7/8/9 次课；`docs/` 目录、代码 tag（`07-libc-asm`/`08-uart-syscall`/`09-trap-irq`/`10-build-debug`）与相关源码注释已同步改名，详见 [course_structure.md](course_structure.md) §2.6。
 
@@ -50,7 +51,8 @@
 | `08-uart-syscall` | 第 8 次课（已发布，原 `09-uart-syscall` 改名） |
 | `09-trap-irq` | 第 9 次课（已发布，原 `10-trap-irq` 改名） |
 | `11-irq-kernel-recap` | 第 11 次课（已发布） |
-| `12-board-agent-demo` | 第 12 次课（已发布，与 `11-irq-kernel-recap` 同一代码） |
+
+第 12 次课 tag（原 `12-board-agent-demo`）已删除，相关代码迁至独立仓库 `miniOS-board-shell`。
 
 ## 阅读建议
 
