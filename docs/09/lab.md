@@ -432,4 +432,5 @@ make clean && make && make run
 | 链接报 `undefined reference to 'ecode_from_estat'` | `lib/ecode.S` 没有被编译：检查 `Makefile` 的 `SRCS_S` 列表末尾有没有加上 `lib/ecode.S` 这一行 |
 | 加了非法指令/`syscall` 后整机卡死不再输出 | 检查 Ecode 判断分支有没有把某个 `if` 写成死循环，或者忘了在 `exception_handler` 末尾 `return era + 4;` |
 | `Ecode` 数值和别人不一样 | 检查 `lib/ecode.S` 里 `srli.d`/`andi` 的位移数、掩码有没有抄错；`ESTAT` 全值应保持稳定，抄错的通常是移位数或掩码位数 |
+| `exception_init()` 跑完后 `break`/非法指令触发直接卡死不返回，自己加代码回读 `EENTRY` 发现一直是 `0`（`exception_init` 本身没改过） | 不是代码逻辑错，是**交叉编译器默认开了 PIE**：`(unsigned long)exception_entry` 这种"取函数地址当数据用"的写法，PIE 下会编译成走 GOT 表间接取址，而 miniOS 是裸机内核，没有运行时处理 GOT 重定位这一步，读出来就是 0。只会在用 **Ubuntu apt 装的 `gcc-loongarch64-linux-gnu`**（不是 `docs/manual_wsl_ubuntu22_toolchain_build.md` 推荐的龙芯官方预编译工具链）时出现。`Makefile` 的 `CFLAGS` 2026-10-09 起已经加上 `-fno-pic -fno-pie`，重新 `git pull` 到最新 `master`（或自己的 `Makefile` 手动补这两个 flag）即可；改完一定要先 `make clean` 再 `make`，否则旧的 `.o` 还是 PIE 编译出来的，不会自动重编 |
 | 退不出 QEMU | Ctrl+a 然后 x |

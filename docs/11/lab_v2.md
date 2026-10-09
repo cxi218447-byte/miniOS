@@ -941,6 +941,7 @@ void ksleep(unsigned long ticks);   /* 睡眠 ticks 个时钟节拍后返回 */
 | tick 刷屏停不下来 | 检查 `TICLR` 清源是否被误删（对照 §5 Task 3） |
 | `ksleep` 永远不返回 | 定时器没开或已 `timer_stop()`；或结束时刻每轮重新计算了 |
 | 编译报 `ksleep` 隐式声明或链接错误 | `include/irq.h` 忘了声明，或 `kernel/main.c` 忘了 `#include "irq.h"` |
+| `exception_init()` 跑完后一个 tick 都等不到，或直接卡死（代码没改过，`timer_init`/`exception_init` 逻辑都对） | 跟第 9 次课同一个坑：**交叉编译器默认开了 PIE**。`exception_init()` 里 `(unsigned long)exception_entry`（取函数地址当数据用）在 PIE 下会走 GOT 表间接取址，miniOS 是裸机内核没有运行时重定位这一步，读出来是 0，`EENTRY` 被写成 0，定时器中断自然也送不到 `irq_dispatch`。只会在用 **Ubuntu apt 装的 `gcc-loongarch64-linux-gnu`**（不是龙芯官方预编译工具链）时出现。`Makefile` 2026-10-09 起 `CFLAGS` 已加 `-fno-pic -fno-pie`，`git pull` 到最新 `master`，`make clean && make` 重编即可 |
 | 退不出 QEMU | `Ctrl+a`，再按 `x` |
 
 ## 13. 附录：`kernel/irq.c` 函数逐一说明
