@@ -11,7 +11,7 @@ TARGET    := $(BUILD_DIR)/minios.elf
 BIN       := $(BUILD_DIR)/minios.bin
 
 CFLAGS  := -Wall -Wextra -O2 -g -ffreestanding -fno-builtin -fno-stack-protector
-CFLAGS  += -nostdlib -mabi=lp64d -march=loongarch64
+CFLAGS  += -nostdlib -mabi=lp64d -march=loongarch64 -fno-pic -fno-pie
 CFLAGS  += $(CFLAGS_EXTRA)
 ASFLAGS := $(CFLAGS)
 LDFLAGS := -T kernel/linker.ld -nostdlib -static
